@@ -20,9 +20,9 @@ import { skillsGet, skillsList, skillsPath } from "./commands/skills.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
 import { AppError } from "./cli/foundation/error-map.js";
+import { VERSION } from "./version.generated.js";
 
 const NAME = "spaceship";
-const VERSION = "0.1.0";
 
 function helpText(): string {
   const groups = new Map<string, string[]>();
@@ -55,6 +55,7 @@ function helpText(): string {
     `  --confirm <id>  required for money and delete operations; must match the target`,
     `  --wait          poll an async operation until it settles`,
     `  --help          show this text`,
+    `  --version       print the version and exit`,
     "",
     `${dim("GETTING STARTED")}`,
     `  ${NAME} auth login          store an API key and secret`,
@@ -75,6 +76,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
   const parsed = parseArgv(argv);
   const flags = parseGlobalFlags(parsed);
   const positional = parsed._;
+
+  // Version is data, so it goes to stdout bare: a caller pipes it into a
+  // comparison rather than reading it.
+  if (parsed.version === true || parsed.v === true) {
+    process.stdout.write(`${VERSION}\n`);
+    return EXIT.ok;
+  }
 
   // Help and the bare invoke are diagnostics, so they go to stderr and leave
   // stdout clean for data. The banner rides the same stream and only appears

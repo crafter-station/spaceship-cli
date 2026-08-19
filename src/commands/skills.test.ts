@@ -111,3 +111,15 @@ describe("the discovery stub", () => {
     expect(stub).toContain("Bash(spaceship:*)");
   });
 });
+
+describe("version", () => {
+  test("matches package.json, since a hand-written copy drifts", async () => {
+    // This shipped as 0.1.0 through two releases: the banner read a constant
+    // nobody bumped. It is generated now, and this fails if that regresses.
+    const { VERSION } = await import("../version.generated.js");
+    const manifest = JSON.parse(
+      readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
+    expect(VERSION).toBe(manifest.version);
+  });
+});

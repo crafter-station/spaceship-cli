@@ -248,3 +248,14 @@ un CLI que administra dominios de terceros.
   board.
 - Tests now assert the stub stays under 3 KB, names every bundled skill, and
   references no command the CLI lacks.
+
+## the banner lied about its own version
+
+- Hunter noticed the banner still said v0.1.0 after two releases. Not a cache:
+  `const VERSION = "0.1.0"` was hand-written in cli.ts during V1 and neither
+  bump touched it. The published package really did announce the wrong version.
+- Generated from package.json now, by the same script that embeds the skills,
+  with a test asserting the two agree. The class of bug is the one this whole
+  project is about: a second copy of a fact, drifting from the first.
+- `--version` did not exist at all. Added, printing to stdout bare, since a
+  caller pipes it into a comparison.

@@ -9,6 +9,7 @@ import { join } from "node:path";
 
 const SKILLS_DIR = "skills";
 const OUT = "src/skills.generated.ts";
+const VERSION_OUT = "src/version.generated.ts";
 
 type Entry = { name: string; description: string; content: string };
 
@@ -45,4 +46,19 @@ for (const entry of entries) {
 lines.push("};", "", "export const skillNames = (): string[] => Object.keys(SKILLS).sort();", "");
 
 writeFileSync(OUT, lines.join("\n"));
-console.error(`embedded ${entries.length} skill(s): ${entries.map((e) => e.name).join(", ")}`);
+
+// The version is generated from package.json for the same reason the skills
+// are: a hand-written copy drifts. This one shipped as 0.1.0 through two
+// releases because nothing tied it to the manifest.
+const manifest = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
+writeFileSync(
+  VERSION_OUT,
+  [
+    "// Generated from package.json by scripts/embed-skills.ts. Do not edit.",
+    "",
+    `export const VERSION = ${JSON.stringify(manifest.version)};`,
+    "",
+  ].join("\n"),
+);
+
+console.error(`embedded ${entries.length} skill(s): ${entries.map((e) => e.name).join(", ")} at v${manifest.version}`);
