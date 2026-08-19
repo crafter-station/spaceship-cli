@@ -15,6 +15,7 @@ import * as writes from "./commands/writes.js";
 import * as money from "./commands/money.js";
 import * as auth from "./commands/auth.js";
 import { specDiff, specSnapshot } from "./commands/spec.js";
+import { doctor } from "./commands/doctor.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
 import { AppError } from "./cli/foundation/error-map.js";
@@ -57,6 +58,7 @@ function helpText(): string {
     `${dim("GETTING STARTED")}`,
     `  ${NAME} auth login          store an API key and secret`,
     `  ${NAME} auth status         show whether credentials are in place`,
+    `  ${NAME} doctor              check credentials, reach the API, report what is set`,
     "",
     `${dim("DISCOVERY")}`,
     `  ${NAME} schema --json     every operation, its tier, rate limit and scopes`,
@@ -97,6 +99,12 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
     if (command === "auth status") return auth.authStatus(ctx);
     if (command === "auth whoami") return auth.authWhoami(ctx);
     if (command === "auth logout") return auth.authLogout(ctx);
+
+    if (positional[0] === "doctor") {
+      return await doctor({ ...ctx, command: "doctor" }, {
+        url: typeof parsed.url === "string" ? parsed.url : undefined,
+      });
+    }
 
     // The spec commands need no credentials: the document is public.
     if (command === "spec snapshot") {

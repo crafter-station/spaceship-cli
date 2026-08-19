@@ -184,3 +184,15 @@ un CLI que administra dominios de terceros.
   `..` segments: the same code resolves from src/ during development and dist/
   once built, and the first version silently resolved outside the package.
 - The cron opens a PR, never publishes. The public feed stays gated on Hunter.
+
+## doctor
+
+- `renderDoctor` from the block was **rejected**; `runDoctor` adopted. The
+  renderer emits its own shape, which would break the one-envelope-per-command
+  contract already published to agents.
+- Padding a styled badge with `padEnd` misaligns the column: "ok" and "fail"
+  carry different amounts of escape bytes. `padVisible` is the only correct
+  padding for anything coloured, and this is the second place that bit.
+- The doctor reports credential *presence and origin*, never values: the key is
+  masked, the secret is reported as a character count. Verified that neither the
+  human nor the JSON output contains the secret.
