@@ -16,6 +16,7 @@ import * as money from "./commands/money.js";
 import * as auth from "./commands/auth.js";
 import { specDiff, specSnapshot } from "./commands/spec.js";
 import { doctor } from "./commands/doctor.js";
+import { skillsGet, skillsList, skillsPath } from "./commands/skills.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
 import { AppError } from "./cli/foundation/error-map.js";
@@ -61,6 +62,8 @@ function helpText(): string {
     `  ${NAME} doctor              check credentials, reach the API, report what is set`,
     "",
     `${dim("DISCOVERY")}`,
+    `  ${NAME} skills list        bundled guides for agents, matching this version`,
+    `  ${NAME} skills get core    read the core usage guide`,
     `  ${NAME} schema --json     every operation, its tier, rate limit and scopes`,
     `  ${NAME} spec diff         check the live API against the recorded snapshot`,
     "",
@@ -99,6 +102,19 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
     if (command === "auth status") return auth.authStatus(ctx);
     if (command === "auth whoami") return auth.authWhoami(ctx);
     if (command === "auth logout") return auth.authLogout(ctx);
+
+    // Skills come from the bundle, so they need neither credentials nor network.
+    if (positional[0] === "skills") {
+      const sub = positional[1];
+      if (sub === undefined || sub === "list") return skillsList({ ...ctx, command: "skills list" });
+      if (sub === "get") return skillsGet({ ...ctx, command: "skills get" }, positional.slice(2), parsed.json === true);
+      if (sub === "path") return skillsPath({ ...ctx, command: "skills path" });
+      throw new AppError("usage", {
+        name: "UnknownCommand",
+        human: `Unknown subcommand: skills ${sub}`,
+        hint: "Try `spaceship skills list` or `spaceship skills get core`.",
+      });
+    }
 
     if (positional[0] === "doctor") {
       return await doctor({ ...ctx, command: "doctor" }, {

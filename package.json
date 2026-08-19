@@ -15,12 +15,13 @@
     "README.md"
   ],
   "scripts": {
-    "build": "bun build src/cli.ts --target=node --outdir dist --format esm",
+    "build": "bun scripts/embed-skills.ts && bun build src/cli.ts --target=node --outdir dist --format esm",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "prepublishOnly": "bun run build && bun test"
+    "prepublishOnly": "bun run build && bun test",
+    "embed": "bun scripts/embed-skills.ts"
   },
   "engines": {
     "node": ">=20"

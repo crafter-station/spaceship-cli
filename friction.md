@@ -208,3 +208,23 @@ un CLI que administra dominios de terceros.
 - The key is not secret on its own, but keeping the pair in one place means one
   thing to rotate and one to revoke. The config file is now only a fallback for
   systems with no keychain.
+
+## skills served from the binary
+
+- Hunter asked why there was no `spaceship skills get core` like `agent-browser`
+  has. The SKILL.md existed and shipped in the package, but only as a file: an
+  agent had to already have it installed. `agent-browser`'s own help states the
+  reason for serving it from the CLI — the content then matches the installed
+  version rather than whatever copy is cached on a machine.
+- `skills get` returns **raw markdown even when piped**, breaking this CLI's own
+  "JSON when not a TTY" rule on purpose. The skill body is the payload; wrapping
+  it in the envelope would make every consumer unwrap a string before reading
+  it. `--json` opts back in.
+- Split into `core` and `portfolio`, since a single skill makes `skills list`
+  pointless and the portfolio material (rate-limit budget, lifecycle states,
+  bulk patterns) is what a caller needs only sometimes.
+- A test asserts the embedded copy equals the file on disk, so the generated
+  module cannot drift from `skills/`. Another scans for commands the skills
+  promise but the CLI lacks; its first version had a false positive on the
+  heading "# spaceship core", so it now scans only backticked spans and shell
+  lines. Verified it still catches a real one.

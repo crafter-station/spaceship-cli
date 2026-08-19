@@ -1,10 +1,10 @@
 ---
-name: spaceship
+name: core
 description: "Manage Spaceship domains, DNS, contacts, transfers, marketplace listings and Hyperlift apps from the command line. Use when the user mentions Spaceship, asks about their domains, wants to check what is expiring, edit DNS records, transfer a domain in, list a domain for sale, or audit a domain portfolio for risk. Covers all 50 operations of the Spaceship public API."
 compatibility: "Requires the `spaceship` command on PATH: `bun add -g @crafter/spaceship-cli` (or `npm i -g`). Needs Spaceship API credentials, stored with `spaceship auth login` or set as SPACESHIP_API_KEY and SPACESHIP_API_SECRET. Run `spaceship doctor --json` to confirm the setup before anything else; it exits 3 when credentials are missing."
 ---
 
-# spaceship
+# spaceship core
 
 Agent-first CLI for the Spaceship registrar API. Every command speaks JSON, every
 write is gated, and every gate can be satisfied without a terminal.
@@ -146,6 +146,14 @@ each finding carries already reflects that difference.
 - `dns set --force` disables Spaceship's conflict checker.
 - Writes refuse while a killswitch file exists at the CLI's home directory.
   Reads and previews keep working.
+
+## When to load another skill
+
+`spaceship skills list` shows what else is bundled. Load one when the task goes
+past reading and single changes:
+
+- **portfolio** — auditing many domains at once, expiry sweeps, bulk changes and
+  the request budget that makes them possible.
 
 ## Keeping up with the API
 

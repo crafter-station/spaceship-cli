@@ -40,20 +40,25 @@ spaceship doctor        # confirms it works, without printing anything secret
 
 `SPACESHIP_API_KEY` and `SPACESHIP_API_SECRET` also work and take precedence.
 
-## Agent skill
+## Agent skills
 
-The repo ships a skill so a coding agent knows the surface without reading help
-text. It travels inside the npm package too, at
-`node_modules/@crafter/spaceship-cli/skills/spaceship/`.
+The CLI serves its own instructions, so what an agent reads always matches the
+version it is calling rather than a copy installed some time ago.
 
 ```bash
-npx skills add crafter-station/spaceship-cli
+spaceship skills list          # what is bundled
+spaceship skills get core      # the core guide, as markdown on stdout
+spaceship skills get portfolio # operating many domains at once
 ```
 
-Or link it from a clone:
+`skills get` prints markdown by default, including when piped, so an agent can
+pipe it straight into context. `--json` wraps it in the usual envelope when the
+metadata is wanted alongside.
+
+The same files also live in `skills/` for tools that read from disk:
 
 ```bash
-ln -sfn "$PWD/skills/spaceship" ~/.claude/skills/spaceship
+ln -sfn "$PWD/skills/core" ~/.claude/skills/spaceship-core
 ```
 
 ## Designed for agents
