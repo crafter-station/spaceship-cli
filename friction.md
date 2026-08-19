@@ -103,3 +103,23 @@ un CLI que administra dominios de terceros.
 - `script -q /dev/null` fails with "tcgetattr/ioctl" if the shell already lost
   its TTY (after backgrounding a server in the same invocation). Run the mock
   detached with `nohup` and the command in a fresh shell.
+
+## V3 (17 T1/T2 writes)
+
+- **Two exit codes were wrong and only observation caught them.** The trust
+  ladder throws `approval/required`, which was not in the exit map, so a refused
+  T2 write exited 1 (runtime) instead of 6 (blocked). The killswitch block
+  throws a plain `Error` for the same reason, so a deliberate freeze also looked
+  like a crash. Both now map to `blocked`; an agent can tell "refused on
+  purpose" from "the CLI broke". Neither was visible from the JSON body, only
+  from `echo $?`.
+- `killswitch` is a **hybrid**, not a straight adopt: the block's own
+  `assertKillswitchOff` is wrapped so the failure carries a typed code and names
+  the freeze reason. Its state file expects JSON; a plain-text reason reads back
+  as "file exists but unreadable".
+- The API requires `userConsent: true` on the privacy endpoint. That is the
+  registrant agreeing, not a technical flag, so the CLI demands `--consent`
+  rather than sending true on the caller's behalf. Sending it silently would
+  make the consent record a lie.
+- Toggles have no default. `--on`/`--off` are both required because a flag that
+  silently means "off" turns a typo into an unintended change.

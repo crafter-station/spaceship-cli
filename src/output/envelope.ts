@@ -67,6 +67,7 @@ const EXIT_BY_CODE: Record<string, ExitCode> = {
   blocked: EXIT.blocked,
   killswitch: EXIT.blocked,
   "approval/confirm-mismatch": EXIT.blocked,
+  "approval/required": EXIT.blocked,
   "approval/declined": EXIT.blocked,
   pending: EXIT.pending,
 };
