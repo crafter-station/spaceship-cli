@@ -1,0 +1,113 @@
+name: Release
+
+# Publishes when package.json's version changes on main. npm trusted publishing
+# (OIDC) means no token lives in repository secrets.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Update npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Detect version change
+        id: version
+        run: |
+          LOCAL=$(jq -r .version package.json)
+          PUBLISHED=$(npm view @crafter/spaceship-cli version 2>/dev/null || echo "0.0.0")
+          echo "local=$LOCAL" >> "$GITHUB_OUTPUT"
+          if [ "$LOCAL" != "$PUBLISHED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Version changed: $PUBLISHED -> $LOCAL"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Version unchanged ($LOCAL), skipping publish"
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.changed == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        if: steps.version.outputs.changed == 'true'
+        run: bun run typecheck
+
+      - name: Tests
+        if: steps.version.outputs.changed == 'true'
+        run: bun test
+
+      - name: Build
+        if: steps.version.outputs.changed == 'true'
+        run: bun run build
+
+      - name: Smoke test the built entry point
+        if: steps.version.outputs.changed == 'true'
+        run: node bin/spaceship.js schema --json | jq -e '.result.operationCount == 50' > /dev/null
+
+      - name: Publish to npm
+        if: steps.version.outputs.changed == 'true'
+        run: npm publish
+
+      - name: Verify the published tarball runs
+        if: steps.version.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.local }}
+        run: |
+          WORKDIR=$(mktemp -d)
+          cd "$WORKDIR"
+          # Poll with the same client that installs: the registry serves a fresh
+          # publish to `npm view` well before bun's view catches up, so a single
+          # attempt here fails on a publish that is actually fine.
+          for i in $(seq 1 30); do
+            if bun add "@crafter/spaceship-cli@$VERSION" 2>/dev/null; then
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "Registry never served $VERSION to bun after 30 attempts"
+              bun add "@crafter/spaceship-cli@$VERSION"
+            fi
+            echo "Waiting for the registry to serve $VERSION to bun ($i/30)"
+            sleep 20
+          done
+          ./node_modules/.bin/spaceship schema --json | jq -e '.result.operationCount == 50' > /dev/null
+          ./node_modules/.bin/spaceship spec diff --json | jq -e '.ok == true' > /dev/null
+          echo "Published tarball runs and carries its spec snapshot"
+
+      - name: Tag and GitHub Release
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.local }}
+        run: |
+          if ! git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
+          fi
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --generate-notes \
+            || echo "Release already exists"
