@@ -56,7 +56,7 @@ const applied = (target: string, message: string) => (): void => {
 
 // ------------------------------------------------------------ domain settings
 
-export function domainsAutorenew(
+export async function domainsAutorenew(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -77,7 +77,7 @@ export function domainsAutorenew(
   });
 }
 
-export function transferLock(
+export async function transferLock(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -98,7 +98,7 @@ export function transferLock(
   });
 }
 
-export function domainsPrivacy(
+export async function domainsPrivacy(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -135,7 +135,7 @@ export function domainsPrivacy(
   });
 }
 
-export function domainsEmailProtection(
+export async function domainsEmailProtection(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -161,7 +161,7 @@ export function domainsEmailProtection(
   });
 }
 
-export function domainsNameservers(
+export async function domainsNameservers(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -195,7 +195,7 @@ export function domainsNameservers(
   });
 }
 
-export function domainsContacts(
+export async function domainsContacts(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -261,7 +261,7 @@ function parseRecord(args: Args): DnsRecord {
   return record;
 }
 
-export function dnsSet(
+export async function dnsSet(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -288,7 +288,7 @@ export function dnsSet(
   });
 }
 
-export function dnsDelete(
+export async function dnsDelete(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -314,7 +314,7 @@ export function dnsDelete(
 
 // ------------------------------------------------------- personal nameservers
 
-export function nsSet(
+export async function nsSet(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -342,7 +342,7 @@ export function nsSet(
   });
 }
 
-export function nsDelete(
+export async function nsDelete(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -387,7 +387,7 @@ const REQUIRED_CONTACT_FIELDS = ["firstName", "lastName", "email", "address1", "
 /** Accepts --first-name as well as --firstName, since both read naturally. */
 const flagFor = (field: string): string => field.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-export function contactsSave(
+export async function contactsSave(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -429,7 +429,7 @@ export function contactsSave(
   });
 }
 
-export function contactsAttrsSave(
+export async function contactsAttrsSave(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -467,7 +467,7 @@ export function contactsAttrsSave(
 
 // --------------------------------------------------------------- hyperlift
 
-export function appBuild(
+export async function appBuild(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -486,7 +486,7 @@ export function appBuild(
   });
 }
 
-export function appRestart(
+export async function appRestart(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -505,7 +505,7 @@ export function appRestart(
   });
 }
 
-export function appScale(
+export async function appScale(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
@@ -534,7 +534,7 @@ export function appScale(
   });
 }
 
-export function appEnvSet(
+export async function appEnvSet(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,

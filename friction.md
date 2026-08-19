@@ -123,3 +123,22 @@ un CLI que administra dominios de terceros.
   make the consent record a lie.
 - Toggles have no default. `--on`/`--off` are both required because a flag that
   silently means "off" turns a typo into an unintended change.
+
+## V4 (10 T3 operations, async --wait)
+
+- **Four tests failed and the code was right; the contract was wrong.** A
+  validation that throws before the first `await` throws *synchronously*, so a
+  caller using `.catch()` never sees it while one using `try` does. Same command,
+  two shapes, depending on which line failed. Every command function is now
+  `async`, so a failure always rejects the promise. The tests then passed
+  untouched, which is the signal the fix was the real one rather than a test
+  edit.
+- `domains renew` requires `currentExpirationDate` and the API rejects a
+  mismatch. That is a double-charge guard, so the CLI reads the date from the
+  API instead of accepting it as a flag: a stale value on the command line
+  cannot defeat it. There is a test asserting a caller-supplied date is ignored.
+- `domains delete` is the only mutating endpoint the spec documents no rate
+  limit for, and the only one with no undo. It carries the strongest warning.
+- The async poll interval is 5s because the status endpoint allows 60 requests
+  per 300 seconds. Picking a faster interval would have burned the budget with
+  two operations in flight.

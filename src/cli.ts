@@ -12,6 +12,7 @@ import { runDomainsList } from "./commands/domains-list.js";
 import * as reads from "./commands/reads.js";
 import { portfolioLint, portfolioRules } from "./commands/portfolio.js";
 import * as writes from "./commands/writes.js";
+import * as money from "./commands/money.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
 import { AppError } from "./cli/foundation/error-map.js";
@@ -46,6 +47,9 @@ function helpText(): string {
     `  --json          emit one JSON envelope on stdout (automatic when piped)`,
     `  --apply         perform a write; without it, mutations preview only`,
     `  --dry-run       show what would happen without calling the API`,
+    `  --yes           approve a gated write without a prompt`,
+    `  --confirm <id>  required for money and delete operations; must match the target`,
+    `  --wait          poll an async operation until it settles`,
     `  --help          show this text`,
     "",
     `${dim("DISCOVERY")}`,
@@ -131,6 +135,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
       "app env get": (client) => reads.appEnvGet(ctx, client, positional[3]),
       "app env set": (client) => writes.appEnvSet(ctx, client, mutateFlags, parsed),
       "app scale": (client) => writes.appScale(ctx, client, mutateFlags, parsed),
+      "market safepay create": (client) => money.marketSafepayCreate(ctx, client, mutateFlags, parsed),
     };
 
     // Writes take the same shape: the parsed argv plus the apply/confirm flags.
@@ -139,6 +144,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
       dryRun: flags.dryRun === true,
       yes: parsed.yes === true,
       confirm: typeof parsed.confirm === "string" ? parsed.confirm : undefined,
+      wait: parsed.wait === true,
+      timeoutMs: parsed.timeout === undefined ? undefined : Number(parsed.timeout) * 1000,
     };
 
     const writeHandlers: Record<string, (client: SpaceshipClient) => Promise<ExitCode>> = {
@@ -156,6 +163,15 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
       "contacts attrs-save": (client) => writes.contactsAttrsSave(ctx, client, mutateFlags, parsed),
       "app build": (client) => writes.appBuild(ctx, client, mutateFlags, parsed),
       "app restart": (client) => writes.appRestart(ctx, client, mutateFlags, parsed),
+      "domains register": (client) => money.domainsRegister(ctx, client, mutateFlags, parsed),
+      "domains renew": (client) => money.domainsRenew(ctx, client, mutateFlags, parsed),
+      "domains restore": (client) => money.domainsRestore(ctx, client, mutateFlags, parsed),
+      "domains delete": (client) => money.domainsDelete(ctx, client, mutateFlags, parsed),
+      "transfer start": (client) => money.transferStart(ctx, client, mutateFlags, parsed),
+      "market add": (client) => money.marketAdd(ctx, client, mutateFlags, parsed),
+      "market update": (client) => money.marketUpdate(ctx, client, mutateFlags, parsed),
+      "market remove": (client) => money.marketRemove(ctx, client, mutateFlags, parsed),
+      "market checkout-link": (client) => money.marketCheckoutLink(ctx, client, mutateFlags, parsed),
     };
 
     const writeHandler = writeHandlers[command];

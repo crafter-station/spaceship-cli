@@ -3,8 +3,9 @@ import { AppError } from "./cli/foundation/error-map.js";
 import { approveGate, type TrustLevel } from "./cli/agent/trust-ladder.js";
 import { EXIT, type ExitCode, type NextStep } from "./contract.js";
 import { emitResult, newRequestId, type EmitContext } from "./output/envelope.js";
-import { bold, danger, dim, muted, warn } from "./cli/platform/style.js";
+import { bold, danger, dim, muted, ok, warn } from "./cli/platform/style.js";
 import { assertWritesAllowed, auditBegin, auditEnd } from "./audit.js";
+import { requireOperationId, waitForOperation } from "./async-ops.js";
 
 /**
  * One path for every write. It builds the request first, so `--dry-run` shows
@@ -30,6 +31,8 @@ export type Mutation<T> = {
   nextSteps?: (result: T) => NextStep[];
   /** Renders the success path for a human. */
   render?: (result: T) => void;
+  /** The API answers 202 and finishes later; --wait polls it to a conclusion. */
+  isAsync?: boolean;
 };
 
 export type MutateFlags = {
@@ -37,6 +40,9 @@ export type MutateFlags = {
   dryRun?: boolean;
   yes?: boolean;
   confirm?: string;
+  /** Poll the async operation until it settles instead of returning its id. */
+  wait?: boolean;
+  timeoutMs?: number;
 };
 
 const line = (text: string): void => {
@@ -121,6 +127,66 @@ export async function runMutation<T>(
 
   try {
     const response = await client.request<T>(mutation.method, mutation.path, { body: mutation.body });
+
+    if (mutation.isAsync === true) {
+      const operationId = requireOperationId(response.asyncOperationId, mutation.command);
+      auditEnd(entry, "ok", { status: response.status, async_operation_id: operationId });
+
+      if (flags.wait !== true) {
+        // Without --wait the id is the result, so the caller can poll it later
+        // with `ops get` rather than guessing whether the change landed.
+        return emitResult(
+          ctx,
+          { accepted: true, operationId, target: mutation.target, status: "pending" } as unknown as T,
+          {
+            requestId,
+            rateLimit: response.rateLimit,
+            nextSteps: [
+              { command: `spaceship ops get ${operationId}`, reason: "Check whether it finished" },
+            ],
+          },
+          () => {
+            line(`\n${warn("accepted")}  ${bold(mutation.target)} ${muted(mutation.summary)}`);
+            line(`  ${dim("operation")}  ${operationId}`);
+            line(`  ${dim("follow")}     spaceship ops get ${operationId}\n`);
+          },
+        );
+      }
+
+      const human = ctx.flags.json !== true;
+      if (human) process.stderr.write(`${muted(`waiting for ${mutation.command} to finish...`)}\n`);
+
+      const outcome = await waitForOperation(client, operationId, {
+        timeoutMs: flags.timeoutMs,
+      });
+
+      if (!outcome.settled) {
+        throw new AppError("pending", {
+          name: "StillPending",
+          human: `${mutation.command} is still running after the wait timed out.`,
+          hint: `Follow it with: spaceship ops get ${operationId}`,
+        });
+      }
+
+      if (outcome.operation.status === "failed") {
+        throw new AppError("upstream", {
+          name: "OperationFailed",
+          human: `${mutation.command} failed on ${mutation.target}.`,
+          hint: `Details: spaceship ops get ${operationId}`,
+        });
+      }
+
+      return emitResult(
+        ctx,
+        { applied: true, operationId, target: mutation.target, status: "success" } as unknown as T,
+        { requestId, rateLimit: response.rateLimit, nextSteps: mutation.nextSteps?.(response.data) },
+        () => {
+          if (mutation.render) mutation.render(response.data);
+          else line(`\n${ok("done")}  ${bold(mutation.target)} ${muted(mutation.summary)}\n`);
+        },
+      );
+    }
+
     auditEnd(entry, "ok", { status: response.status, operationId: response.operationId });
 
     return emitResult(
