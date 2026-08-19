@@ -4,24 +4,11 @@ import { emitResult, type EmitContext } from "../output/envelope.js";
 import { table } from "../output/table.js";
 import { byUrgency, daysUntil, expiryPhrase, paintUrgency, urgencyOf } from "../output/urgency.js";
 import { bold, danger, dim, muted, warn } from "../cli/platform/style.js";
-
-export type DomainInfo = {
-  name: string;
-  unicodeName: string;
-  isPremium: boolean;
-  autoRenew: boolean;
-  registrationDate: string;
-  expirationDate: string;
-  lifecycleStatus: "creating" | "registered" | "grace1" | "grace2" | "redemption";
-  verificationStatus: "verification" | "success" | "failed";
-  eppStatuses: string[];
-  suspensions: { type?: string }[];
-  privacyProtection: { level: string; contactForm: boolean };
-  nameservers: { hosts: string[] };
-  contacts: { registrant: string };
-};
+import type { DomainInfo } from "../types.js";
 
 type DomainListPage = { items: DomainInfo[]; total: number };
+
+export type { DomainInfo };
 
 /** The API caps a page at 100 and requires both take and skip. */
 const PAGE_SIZE = 100;

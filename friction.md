@@ -89,3 +89,17 @@ un CLI que administra dominios de terceros.
   noise the grouping existed to remove.
 - `script -q /dev/null` is the way to see the real TTY branch from a captured
   shell. Without it every check silently exercises the machine path.
+
+## V2 (portfolio lint)
+
+- Two `DomainInfo` types had drifted apart (one declared in `domains-list.ts`
+  during V1, one in `types.ts`). Consolidated on `types.ts`; the duplicate only
+  surfaced because the stricter one used a union for `eppStatuses`.
+- Reading the lint output found the repeated-header defect **again**, this time
+  in the findings table, plus a worse one: only the first fix per domain was
+  printed, so a domain with two problems looked like it needed one action.
+  Both fixed. The lesson is that the rule ("repetition is a heading") does not
+  transfer by having been applied once; each new table reintroduces it.
+- `script -q /dev/null` fails with "tcgetattr/ioctl" if the shell already lost
+  its TTY (after backgrounding a server in the same invocation). Run the mock
+  detached with `nohup` and the command in a fresh shell.
