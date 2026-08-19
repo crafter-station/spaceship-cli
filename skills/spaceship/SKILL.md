@@ -1,6 +1,7 @@
 ---
 name: spaceship
 description: "Manage Spaceship domains, DNS, contacts, transfers, marketplace listings and Hyperlift apps from the command line. Use when the user mentions Spaceship, asks about their domains, wants to check what is expiring, edit DNS records, transfer a domain in, list a domain for sale, or audit a domain portfolio for risk. Covers all 50 operations of the Spaceship public API."
+compatibility: "Requires the `spaceship` command on PATH: `bun add -g @crafter/spaceship-cli` (or `npm i -g`). Needs Spaceship API credentials, stored with `spaceship auth login` or set as SPACESHIP_API_KEY and SPACESHIP_API_SECRET. Run `spaceship doctor --json` to confirm the setup before anything else; it exits 3 when credentials are missing."
 ---
 
 # spaceship
@@ -49,9 +50,22 @@ parsing `--help`.
 
 ## Credentials
 
-`SPACESHIP_API_KEY` and `SPACESHIP_API_SECRET`, or `spaceship auth login` which
-stores the secret in the OS keychain. `spaceship auth status --json` reports
-whether credentials are in place and where they came from.
+`spaceship auth login` prompts for the key and secret, verifies them against the
+API, and stores both in the OS keychain. `SPACESHIP_API_KEY` and
+`SPACESHIP_API_SECRET` also work and take precedence over stored ones.
+
+Before doing anything else, check the setup:
+
+```bash
+spaceship doctor --json
+```
+
+It reports whether each credential is present, which source it came from, and
+whether it actually works — without ever printing a secret. The key is masked
+and the secret is reported as a character count. It exits 3 when credentials are
+missing or rejected, so it is a usable precondition check.
+
+`spaceship auth status` is the narrower version: credentials only, no API call.
 
 ## Trust tiers
 
@@ -89,8 +103,14 @@ it audits a whole portfolio in `ceil(total / 100)` requests.
 ## Worth composing
 
 ```bash
+# Confirm the CLI is set up before anything else
+spaceship doctor --json
+
 # What needs attention across the whole account, in one or two requests
 spaceship portfolio lint --json
+
+# What the lint checks for, as data
+spaceship portfolio rules --json
 
 # What is expiring, most urgent first
 spaceship domains list --json
@@ -104,6 +124,18 @@ spaceship dns set example.com A www 76.76.21.21 --json
 # Renew and wait for the registry to confirm
 spaceship domains renew example.com --years 1 --apply --yes --confirm example.com --wait --json
 ```
+
+## Reading the portfolio lint
+
+`portfolio lint` returns findings with a `severity` (`critical`, `warning`,
+`notice`), the domain, a message stating what is true, and a runnable `fix`.
+Seven rules cover expiry without auto-renew, domains past expiry inside the
+recovery window, an open transfer lock, registrar suspensions, unfinished
+registrant verification, public WHOIS, and missing nameservers.
+
+`grace1`, `grace2` and `redemption` are distinct states, not one "expired": the
+first two renew at the normal price, redemption carries a restore fee. The fix
+each finding carries already reflects that difference.
 
 ## Safety notes
 
