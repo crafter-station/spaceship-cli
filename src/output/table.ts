@@ -67,7 +67,7 @@ export function grouped<T>(
   rows: T[],
   keyOf: (row: T) => string,
   columns: Column<T>[],
-  options: { order?: string[] } = {},
+  options: { order?: string[]; repeatHeader?: boolean } = {},
 ): string[] {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
@@ -99,7 +99,11 @@ export function grouped<T>(
       .map((column, i) => ({ column, i }))
       .filter(({ column }) => bucket.some((row) => visibleWidth(renderCell(column, row)) > 0))
       .map(({ i }) => shared[i] ?? 0);
-    lines.push(...table(bucket, columns, { widths: populatedWidths }).map((line) => `  ${line}`));
+    const rendered = table(bucket, columns, { widths: populatedWidths });
+    // One header for the whole listing: repeating it per group is the same
+    // noise the grouping removed.
+    const body = options.repeatHeader === false && index > 0 ? rendered.slice(1) : rendered;
+    lines.push(...body.map((line) => `  ${line}`));
   }
   return lines;
 }

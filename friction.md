@@ -73,3 +73,19 @@ un CLI que administra dominios de terceros.
   con el padding). El de anchos compartidos, en cambio, encontro un bug real:
   `trimEnd()` borra el padding de la ultima columna. Se corrigio el test para
   medir el offset de la segunda columna, que es lo que el lector percibe.
+
+## V1 (23 read commands)
+
+- **Hunter caught the banner unwired.** It was installed in V0 and never called,
+  which is exactly the Phase 5 anti-pattern: a feature the docs imply and the
+  code does not back. Now wired into the bare invoke and `--help`, on stderr,
+  suppressed in JSON mode and when piped. Verified through a real TTY with
+  `script -q /dev/null`, because a captured stdout hides it either way.
+- Reading the human output a second time found three more defects no automated
+  gate catches: `grace1` and `redemption` printed uncolored while the ordinary
+  `ok` was grey (a loss state reading quieter than a normal one); `manual`
+  renewal painted the same on a domain with 209 days left and one with 2; and
+  the DNS table repeating its header once per record-type group, which is the
+  noise the grouping existed to remove.
+- `script -q /dev/null` is the way to see the real TTY branch from a captured
+  shell. Without it every check silently exercises the machine path.

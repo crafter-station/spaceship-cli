@@ -1,5 +1,5 @@
 import { AppError } from "./cli/foundation/error-map.js";
-import type { Credentials } from "./client.js";
+import type { ClientOptions, Credentials } from "./client.js";
 
 /**
  * Identifiers may be persisted; the secret is read from the environment or the
@@ -18,4 +18,13 @@ export function loadCredentials(env: NodeJS.ProcessEnv = process.env): Credentia
   }
 
   return { apiKey, apiSecret };
+}
+
+/**
+ * SPACESHIP_API_URL redirects the client at a stand-in server. It exists for
+ * integration tests and local mocks; production needs no configuration.
+ */
+export function clientOptions(env: NodeJS.ProcessEnv = process.env): ClientOptions {
+  const baseUrl = env.SPACESHIP_API_URL?.trim();
+  return baseUrl ? { baseUrl } : {};
 }

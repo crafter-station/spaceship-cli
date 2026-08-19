@@ -3,7 +3,7 @@ import { EXIT, type ExitCode } from "../contract.js";
 import { emitResult, type EmitContext } from "../output/envelope.js";
 import { table } from "../output/table.js";
 import { byUrgency, daysUntil, expiryPhrase, paintUrgency, urgencyOf } from "../output/urgency.js";
-import { bold, dim, muted } from "../cli/platform/style.js";
+import { bold, danger, dim, muted, warn } from "../cli/platform/style.js";
 
 export type DomainInfo = {
   name: string;
@@ -93,10 +93,21 @@ export async function runDomainsList(
             return paintUrgency(urgencyOf(days), expiryPhrase(days));
           },
         },
-        { header: "renew", render: (d) => (d.autoRenew ? dim("auto") : muted("manual")) },
+        {
+          header: "renew",
+          // Manual renewal is neutral on a domain with a year left and an alarm
+          // on one expiring this week, so it is painted by urgency, not by value.
+          render: (d) => {
+            if (d.autoRenew) return dim("auto");
+            return daysUntil(d.expirationDate) <= 30 ? warn("manual") : muted("manual");
+          },
+        },
         {
           header: "status",
-          render: (d) => (d.lifecycleStatus === "registered" ? muted("ok") : d.lifecycleStatus),
+          // grace1, grace2 and redemption are recoverable-loss states; they must
+          // not read as quieter than the ordinary "ok".
+          render: (d) =>
+            d.lifecycleStatus === "registered" ? muted("ok") : danger(d.lifecycleStatus),
         },
       ]);
 
