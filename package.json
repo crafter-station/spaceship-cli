@@ -1,6 +1,6 @@
 {
   "name": "@crafter/spaceship-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agent-first CLI for the Spaceship registrar API: all 50 operations, a trust ladder for writes, portfolio linting, and a drift linter",
   "type": "module",
   "license": "MIT",
