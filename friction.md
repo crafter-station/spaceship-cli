@@ -142,3 +142,22 @@ un CLI que administra dominios de terceros.
 - The async poll interval is 5s because the status endpoint allows 60 requests
   per 300 seconds. Picking a faster interval would have burned the budget with
   two operations in flight.
+
+## auth (found by Hunter running the CLI)
+
+- **The CLI advertised a command that did not exist.** Two error hints told the
+  user to run `spaceship auth login`, which was never built: following the CLI's
+  own advice produced "Unknown command". This is the Phase 5 anti-pattern in its
+  purest form, and it shipped because a hint is prose, not a call site, so no
+  wiring check covered it. There is now a test that scans every `spaceship ...`
+  string in the source and fails when one names a command the registry does not
+  have. Verified it catches the bug by reintroducing it.
+- `api-key-wizard` was **rejected** after inspection: it prompts for a single
+  key, and this API needs a key plus a secret verified together. `prompt-secret`
+  is used directly instead.
+- The secret goes to the macOS keychain via `security`, never to the config
+  file; only the key id is persisted. Credentials are verified against the API
+  before being stored, so a typo fails at login rather than on the next command.
+- `auth logout` warns when SPACESHIP_API_SECRET is still exported: clearing
+  storage does not unset a shell variable, and reporting "signed out" while the
+  next command still works would be a lie.

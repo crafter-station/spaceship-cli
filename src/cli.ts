@@ -13,6 +13,7 @@ import * as reads from "./commands/reads.js";
 import { portfolioLint, portfolioRules } from "./commands/portfolio.js";
 import * as writes from "./commands/writes.js";
 import * as money from "./commands/money.js";
+import * as auth from "./commands/auth.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
 import { AppError } from "./cli/foundation/error-map.js";
@@ -52,6 +53,10 @@ function helpText(): string {
     `  --wait          poll an async operation until it settles`,
     `  --help          show this text`,
     "",
+    `${dim("GETTING STARTED")}`,
+    `  ${NAME} auth login          store an API key and secret`,
+    `  ${NAME} auth status         show whether credentials are in place`,
+    "",
     `${dim("DISCOVERY")}`,
     `  ${NAME} schema --json     every operation, its tier, rate limit and scopes`,
     "",
@@ -84,6 +89,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
   const ctx: EmitContext = { command: isTriple ? positional.slice(0, 3).join(" ") : command, flags };
 
   try {
+    // Auth runs before the credential check: these are the commands that
+    // establish credentials, so requiring them would be circular.
+    if (command === "auth login") return await auth.authLogin(ctx, parsed);
+    if (command === "auth status") return auth.authStatus(ctx);
+    if (command === "auth whoami") return auth.authWhoami(ctx);
+    if (command === "auth logout") return auth.authLogout(ctx);
+
     if (command === "portfolio rules") {
       return portfolioRules({ ...ctx, command: "portfolio rules" });
     }
