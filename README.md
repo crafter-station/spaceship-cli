@@ -55,18 +55,19 @@ spaceship skills get portfolio # operating many domains at once
 pipe it straight into context. `--json` wraps it in the usual envelope when the
 metadata is wanted alongside.
 
-### Installing the discovery stub
-
-Agent runtimes load an installed skill into every session, so the one you
-install is a thin stub that routes to the CLI rather than a copy of the guide:
+### Installing the skill
 
 ```bash
-ln -sfn "$PWD/stub/spaceship" ~/.claude/skills/spaceship
+npx skills add crafter-station/spaceship-cli
 ```
 
-It is a fifth the size of `core` and, more importantly, it cannot go stale: the
-real instructions come from `skills get`, which always matches the installed
-version. The full skill sources live in `skills/`.
+That installs one skill, `spaceship`: a 2 KB stub that routes to the CLI. An
+agent runtime loads an installed skill into every session, so the stub carries
+no instructions of its own — it points at `spaceship skills get`, which always
+matches the installed version and therefore cannot go stale.
+
+The guides it points at live in `guides/`, deliberately outside `skills/` so the
+installer never offers them.
 
 ## Designed for agents
 

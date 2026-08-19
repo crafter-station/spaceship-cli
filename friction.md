@@ -259,3 +259,15 @@ un CLI que administra dominios de terceros.
   project is about: a second copy of a fact, drifting from the first.
 - `--version` did not exist at all. Added, printing to stdout bare, since a
   caller pipes it into a comparison.
+
+## `npx skills add` offered the wrong skills
+
+- Hunter ran the installer and it offered `core` and `portfolio` — the two full
+  guides the stub exists to keep out of every session. The installer walks
+  `skills/`, which held the guides, while the stub sat in `stub/` where nothing
+  looked for it. Exactly backwards.
+- Swapped: `skills/spaceship/` is the stub and the only thing installable;
+  the guides moved to `guides/`, which the embedder reads and the installer
+  never sees. `npx skills add` now offers one skill, named `spaceship`.
+- A test asserts `skills/` contains exactly one directory. Verified it fails by
+  copying a guide back in.

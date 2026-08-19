@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { SKILLS, skillNames } from "../skills.generated.js";
 import { OPERATIONS } from "../registry.js";
 
@@ -18,7 +18,7 @@ describe("bundled skills", () => {
     // The generated module is the thing the binary serves; if it drifts from
     // skills/, the CLI ships instructions nobody edited.
     for (const name of skillNames()) {
-      const onDisk = readFileSync(new URL(`../../skills/${name}/SKILL.md`, import.meta.url), "utf8");
+      const onDisk = readFileSync(new URL(`../../guides/${name}/SKILL.md`, import.meta.url), "utf8");
       expect(SKILLS[name]?.content).toBe(onDisk);
     }
   });
@@ -70,7 +70,7 @@ describe("bundled skills", () => {
 });
 
 describe("the discovery stub", () => {
-  const stub = readFileSync(new URL("../../stub/spaceship/SKILL.md", import.meta.url), "utf8");
+  const stub = readFileSync(new URL("../../skills/spaceship/SKILL.md", import.meta.url), "utf8");
 
   test("stays thin: it routes to the CLI instead of duplicating the guide", () => {
     // The stub loads into every session; the real content loads on demand. If
@@ -121,5 +121,22 @@ describe("version", () => {
       readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
     ) as { version: string };
     expect(VERSION).toBe(manifest.version);
+  });
+});
+
+describe("what `npx skills add` offers", () => {
+  test("skills/ holds the stub alone, so the installer cannot offer the guides", () => {
+    // The installer walks skills/ and offers everything it finds. With the
+    // guides in there it offered core and portfolio — the two things the stub
+    // exists to keep out of every session.
+    const entries = readdirSync(new URL("../../skills", import.meta.url), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    expect(entries).toEqual(["spaceship"]);
+  });
+
+  test("the installable skill is named spaceship, matching its directory", () => {
+    const stub = readFileSync(new URL("../../skills/spaceship/SKILL.md", import.meta.url), "utf8");
+    expect(stub).toContain("name: spaceship");
   });
 });

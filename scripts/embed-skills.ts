@@ -1,13 +1,18 @@
 /**
- * Embeds skills/<name>/SKILL.md into src/skills.generated.ts so the binary can
+ * Embeds guides/<name>/SKILL.md into src/skills.generated.ts so the binary can
  * serve instructions that match its own version. An agent reading a copy from
  * disk gets whatever was installed once; reading from the binary gets what this
  * build actually does.
+ *
+ * The guides live outside `skills/` on purpose: `npx skills add` installs
+ * everything it finds under `skills/`, and installing the full guides is
+ * exactly what the discovery stub exists to avoid. `skills/` holds the stub
+ * alone, so the installer offers the one thing worth installing.
  */
 import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const SKILLS_DIR = "skills";
+const SKILLS_DIR = "guides";
 const OUT = "src/skills.generated.ts";
 const VERSION_OUT = "src/version.generated.ts";
 
