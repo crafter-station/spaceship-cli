@@ -161,3 +161,26 @@ un CLI que administra dominios de terceros.
 - `auth logout` warns when SPACESHIP_API_SECRET is still exported: clearing
   storage does not unset a shell variable, and reporting "signed out" while the
   next command still works would be a lie.
+
+## V5 (drift linter)
+
+- The extractor slices the embedded object by tracking brace depth outside
+  strings. A regex cannot do it: the document contains braces inside markdown
+  descriptions and inside curl examples, and escaped quotes inside both.
+- **"No changes" proves nothing about a differ.** Running it against the live
+  API returned a clean result, which is exactly what a broken differ also
+  returns. It was verified by injecting five known changes into a served copy
+  of the spec and checking each landed in the right severity: a new required
+  field, a lowered rate limit, a new scope, an extended enum, and a new
+  endpoint. Then the inverse: a change on an endpoint no command calls must
+  exit 0.
+- The lowered rate limit (300 to 50 per 300s) is the case that justifies parsing
+  prose. It changes runtime behaviour, breaks pacing, and a schema-only differ
+  sees nothing at all because no type moved.
+- Severity is coverage-crossed, so the report says "domains autorenew will
+  break" rather than "the API changed". That is only possible because the
+  registry declares which command calls which operation.
+- The path to spec/raw.json walks up looking for the file rather than counting
+  `..` segments: the same code resolves from src/ during development and dist/
+  once built, and the first version silently resolved outside the package.
+- The cron opens a PR, never publishes. The public feed stays gated on Hunter.

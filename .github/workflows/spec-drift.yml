@@ -1,0 +1,79 @@
+name: spec drift
+
+# The API changes when Spaceship deploys, not when we push, so this runs on a
+# schedule. Without it, drift is invisible until someone happens to touch the
+# repo.
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Compare the live spec against the snapshot
+        id: diff
+        run: |
+          set +e
+          bun run src/cli.ts spec diff --json > diff.json
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          {
+            echo "changed=$(jq -r '.result.changed' diff.json)"
+            echo "breaking=$(jq -r '.result.counts.breaking' diff.json)"
+            echo "warning=$(jq -r '.result.counts.warning' diff.json)"
+            echo "info=$(jq -r '.result.counts.info' diff.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Record the new snapshot
+        if: steps.diff.outputs.changed == 'true'
+        run: bun run src/cli.ts spec snapshot --json > snapshot.json
+
+      - name: Write the change summary
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          {
+            echo "The live API differs from the recorded snapshot."
+            echo ""
+            jq -r '.result.changes[] | "- **\(.severity)** `\(.subject)` — \(.detail)\(if (.commands | length) > 0 then " (affects: \(.commands | join(", ")))" else "" end)"' diff.json
+          } > summary.md
+
+      - name: Open a pull request with the new snapshot
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: spec-drift
+          title: "chore(spec): record API changes"
+          body-path: summary.md
+          commit-message: "chore(spec): record API changes"
+          add-paths: spec/raw.json
+
+      # A pull request can be merged without being read. A breaking change needs
+      # someone to decide what code moves, so it also gets an issue.
+      - name: Open an issue for breaking changes
+        if: steps.diff.outputs.breaking != '0' && steps.diff.outputs.breaking != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('summary.md', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Spaceship API: ${{ steps.diff.outputs.breaking }} breaking change(s)`,
+              body: summary,
+              labels: ['spec-drift'],
+            });

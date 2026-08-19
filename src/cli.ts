@@ -14,6 +14,7 @@ import { portfolioLint, portfolioRules } from "./commands/portfolio.js";
 import * as writes from "./commands/writes.js";
 import * as money from "./commands/money.js";
 import * as auth from "./commands/auth.js";
+import { specDiff, specSnapshot } from "./commands/spec.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
 import { AppError } from "./cli/foundation/error-map.js";
@@ -59,6 +60,7 @@ function helpText(): string {
     "",
     `${dim("DISCOVERY")}`,
     `  ${NAME} schema --json     every operation, its tier, rate limit and scopes`,
+    `  ${NAME} spec diff         check the live API against the recorded snapshot`,
     "",
   );
   return lines.join("\n");
@@ -95,6 +97,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
     if (command === "auth status") return auth.authStatus(ctx);
     if (command === "auth whoami") return auth.authWhoami(ctx);
     if (command === "auth logout") return auth.authLogout(ctx);
+
+    // The spec commands need no credentials: the document is public.
+    if (command === "spec snapshot") {
+      return await specSnapshot(ctx, { url: typeof parsed.url === "string" ? parsed.url : undefined });
+    }
+    if (command === "spec diff") {
+      return await specDiff(ctx, { url: typeof parsed.url === "string" ? parsed.url : undefined });
+    }
 
     if (command === "portfolio rules") {
       return portfolioRules({ ...ctx, command: "portfolio rules" });

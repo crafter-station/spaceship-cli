@@ -1,0 +1,27 @@
+#!/bin/sh
+# Checks the live API against the recorded snapshot before a push that touches
+# the command surface. Network failure is not a reason to block a push, so the
+# hook warns and lets it through; only real drift stops it.
+
+changed=$(git diff --cached --name-only HEAD 2>/dev/null || git diff --name-only "@{push}" HEAD 2>/dev/null || echo "")
+
+case "$changed" in
+  *src/commands/*|*src/registry.ts*|*src/spec/*) ;;
+  *) exit 0 ;;
+esac
+
+echo "checking the API against the snapshot..."
+if ! output=$(bun run src/cli.ts spec diff --json 2>&1); then
+  case "$output" in
+    *'"code":"network"'*|*'"code":"upstream"'*)
+      echo "spec check skipped: could not reach the docs. Pushing anyway."
+      exit 0
+      ;;
+  esac
+  echo "$output"
+  echo ""
+  echo "The live API differs from spec/raw.json in ways that affect shipped commands."
+  echo "Run: bun run src/cli.ts spec diff"
+  exit 1
+fi
+exit 0
