@@ -55,11 +55,18 @@ spaceship skills get portfolio # operating many domains at once
 pipe it straight into context. `--json` wraps it in the usual envelope when the
 metadata is wanted alongside.
 
-The same files also live in `skills/` for tools that read from disk:
+### Installing the discovery stub
+
+Agent runtimes load an installed skill into every session, so the one you
+install is a thin stub that routes to the CLI rather than a copy of the guide:
 
 ```bash
-ln -sfn "$PWD/skills/core" ~/.claude/skills/spaceship-core
+ln -sfn "$PWD/stub/spaceship" ~/.claude/skills/spaceship
 ```
+
+It is a fifth the size of `core` and, more importantly, it cannot go stale: the
+real instructions come from `skills get`, which always matches the installed
+version. The full skill sources live in `skills/`.
 
 ## Designed for agents
 

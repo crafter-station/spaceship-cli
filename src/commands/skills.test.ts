@@ -68,3 +68,46 @@ describe("bundled skills", () => {
     }
   });
 });
+
+describe("the discovery stub", () => {
+  const stub = readFileSync(new URL("../../stub/spaceship/SKILL.md", import.meta.url), "utf8");
+
+  test("stays thin: it routes to the CLI instead of duplicating the guide", () => {
+    // The stub loads into every session; the real content loads on demand. If
+    // this grows toward the size of core, the split has stopped paying for
+    // itself.
+    expect(stub.length).toBeLessThan(3000);
+    expect(SKILLS.core?.content.length ?? 0).toBeGreaterThan(stub.length);
+  });
+
+  test("points at every bundled skill, so none is unreachable from discovery", () => {
+    for (const name of skillNames()) {
+      expect(stub).toContain(`spaceship skills get ${name}`);
+    }
+  });
+
+  test("names only commands the CLI defines", () => {
+    const known = new Set([
+      ...OPERATIONS.map((op) => op.command),
+      "auth login",
+      "skills list",
+      "skills get",
+      "portfolio lint",
+      "doctor",
+    ]);
+    const phantom: string[] = [];
+    for (const match of stub.matchAll(/`spaceship ([^`]+)`/g)) {
+      const parts = (match[1] ?? "").trim().split(/\s+/).filter((p) => !p.startsWith("-") && !p.startsWith("<"));
+      if (parts.length === 0) continue;
+      if (![3, 2, 1].some((take) => known.has(parts.slice(0, take).join(" ")))) {
+        phantom.push(parts.join(" "));
+      }
+    }
+    expect(phantom).toEqual([]);
+  });
+
+  test("declares the tools it is allowed to run", () => {
+    expect(stub).toContain("allowed-tools:");
+    expect(stub).toContain("Bash(spaceship:*)");
+  });
+});

@@ -1,6 +1,6 @@
 {
   "name": "@crafter/spaceship-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Agent-first CLI for the Spaceship registrar API: all 50 operations, a trust ladder for writes, portfolio linting, and a drift linter",
   "type": "module",
   "license": "MIT",
@@ -12,7 +12,8 @@
     "bin",
     "spec",
     "skills",
-    "README.md"
+    "README.md",
+    "stub"
   ],
   "scripts": {
     "build": "bun scripts/embed-skills.ts && bun build src/cli.ts --target=node --outdir dist --format esm",

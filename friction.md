@@ -228,3 +228,23 @@ un CLI que administra dominios de terceros.
   promise but the CLI lacks; its first version had a false positive on the
   heading "# spaceship core", so it now scans only backticked spans and shell
   lines. Verified it still catches a real one.
+
+## the discovery stub
+
+- Hunter asked whether a thin skill existed — one that routes to the CLI instead
+  of duplicating the guide. It did not: the installed skills were the full
+  `core` and `portfolio`, 10.5 KB loaded into every session.
+- `agent-browser`'s own stub states the reason plainly: "This file is a
+  discovery stub, not the usage guide." Its stub is 3.3 KB and points at
+  `skills get core`. A stub cannot go stale between releases because it carries
+  no instructions to be wrong about.
+- The stub is 2.2 KB against 10.5 KB eager, and lives in `stub/` rather than
+  `skills/` so the embedder does not bundle a file whose only job is to point at
+  the bundle.
+- **A verification of mine produced a false failure.** Looping over commands
+  with an unquoted `$c` split "skills get core" into separate arguments, so all
+  three skills commands looked like they exited 2. They were fine; the test
+  harness was wrong. Re-ran with `eval` and proper quoting: exit 0 across the
+  board.
+- Tests now assert the stub stays under 3 KB, names every bundled skill, and
+  references no command the CLI lacks.
