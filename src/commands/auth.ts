@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { platform } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir, platform } from "node:os";
+import { join } from "node:path";
 import { AppError } from "../cli/foundation/error-map.js";
 import { promptSecret } from "../cli/agent/prompt-secret.js";
 import { loadConfig, saveConfig } from "../cli/foundation/config.js";
@@ -18,7 +20,8 @@ import type { Paged } from "../types.js";
  */
 
 const SERVICE = "spaceship-cli";
-const ACCOUNT = "api_secret";
+const KEY_ACCOUNT = "api_key";
+const SECRET_ACCOUNT = "api_secret";
 
 type StoredConfig = Record<string, unknown> & { apiKey?: string };
 
@@ -30,32 +33,32 @@ const line = (text: string): void => {
 
 const hasKeychain = (): boolean => platform() === "darwin";
 
-function keychainRead(): string | null {
+function keychainRead(account: string): string | null {
   if (!hasKeychain()) return null;
   const result = spawnSync(
     "security",
-    ["find-generic-password", "-s", SERVICE, "-a", ACCOUNT, "-w"],
+    ["find-generic-password", "-s", SERVICE, "-a", account, "-w"],
     { encoding: "utf8" },
   );
   if (result.status !== 0) return null;
   return result.stdout.trim() || null;
 }
 
-function keychainWrite(secret: string): boolean {
+function keychainWrite(account: string, value: string): boolean {
   if (!hasKeychain()) return false;
-  // -U updates in place when the entry already exists. The secret is passed as
+  // -U updates in place when the entry already exists. The value is passed as
   // an argument to `security` only; it is never written to a file or a log.
   const result = spawnSync(
     "security",
-    ["add-generic-password", "-s", SERVICE, "-a", ACCOUNT, "-w", secret, "-U"],
+    ["add-generic-password", "-s", SERVICE, "-a", account, "-w", value, "-U"],
     { encoding: "utf8" },
   );
   return result.status === 0;
 }
 
-function keychainDelete(): boolean {
+function keychainDelete(account: string): boolean {
   if (!hasKeychain()) return false;
-  const result = spawnSync("security", ["delete-generic-password", "-s", SERVICE, "-a", ACCOUNT], {
+  const result = spawnSync("security", ["delete-generic-password", "-s", SERVICE, "-a", account], {
     encoding: "utf8",
   });
   return result.status === 0;
@@ -64,11 +67,13 @@ function keychainDelete(): boolean {
 // ------------------------------------------------------------ stored config
 
 export function storedApiKey(): string | null {
+  const fromKeychain = keychainRead(KEY_ACCOUNT);
+  if (fromKeychain) return fromKeychain;
   const config = loadConfig<StoredConfig>(paths().config);
   return typeof config.apiKey === "string" && config.apiKey !== "" ? config.apiKey : null;
 }
 
-export const storedApiSecret = (): string | null => keychainRead();
+export const storedApiSecret = (): string | null => keychainRead(SECRET_ACCOUNT);
 
 /** Masked for display: enough to recognise the key, not enough to use it. */
 const maskKey = (key: string): string =>
@@ -111,8 +116,10 @@ export async function authLogin(ctx: EmitContext, args: Record<string, unknown>)
   const client = new SpaceshipClient({ apiKey, apiSecret }, clientOptions());
   const { data } = await client.get<Paged<unknown>>("/v1/domains", { take: 1, skip: 0 });
 
-  const savedToKeychain = keychainWrite(apiSecret);
-  saveConfig(paths().config, { defaults: { apiKey } });
+  // Both halves go to the keychain. The key is not secret on its own, but
+  // keeping the pair together means one place to rotate and one to revoke.
+  const savedToKeychain = keychainWrite(SECRET_ACCOUNT, apiSecret) && keychainWrite(KEY_ACCOUNT, apiKey);
+  if (!savedToKeychain) saveConfig(paths().config, { defaults: { apiKey } });
 
   return emitResult(
     ctx,
@@ -141,10 +148,12 @@ export async function authLogin(ctx: EmitContext, args: Record<string, unknown>)
 export function authStatus(ctx: EmitContext): ExitCode {
   const envKey = process.env.SPACESHIP_API_KEY;
   const envSecret = process.env.SPACESHIP_API_SECRET;
-  const configKey = storedApiKey();
-  const keychainSecret = keychainRead();
+  const keychainKey = keychainRead(KEY_ACCOUNT);
+  const config = loadConfig<StoredConfig>(paths().config);
+  const configKey = typeof config.apiKey === "string" && config.apiKey !== "" ? config.apiKey : null;
+  const keychainSecret = keychainRead(SECRET_ACCOUNT);
 
-  const apiKey = envKey ?? configKey;
+  const apiKey = envKey ?? keychainKey ?? configKey;
   const hasSecret = Boolean(envSecret ?? keychainSecret);
 
   return emitResult(
@@ -152,7 +161,7 @@ export function authStatus(ctx: EmitContext): ExitCode {
     {
       authenticated: Boolean(apiKey) && hasSecret,
       apiKey: apiKey ? maskKey(apiKey) : null,
-      keySource: envKey ? "environment" : configKey ? "config" : null,
+      keySource: envKey ? "environment" : keychainKey ? "keychain" : configKey ? "config file" : null,
       secretSource: envSecret ? "environment" : keychainSecret ? "keychain" : null,
     },
     {
@@ -175,7 +184,8 @@ export function authStatus(ctx: EmitContext): ExitCode {
 }
 
 export function authLogout(ctx: EmitContext): ExitCode {
-  const removed = keychainDelete();
+  const removed = keychainDelete(SECRET_ACCOUNT);
+  keychainDelete(KEY_ACCOUNT);
   saveConfig(paths().config, { defaults: { apiKey: "" } });
 
   return emitResult(ctx, { cleared: true, secretRemoved: removed }, {}, (result) => {

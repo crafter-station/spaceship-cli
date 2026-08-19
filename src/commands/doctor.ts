@@ -25,18 +25,18 @@ const mask = (value: string): string =>
 export async function doctor(ctx: EmitContext, args: { url?: string } = {}): Promise<ExitCode> {
   const envKey = process.env.SPACESHIP_API_KEY?.trim();
   const envSecret = process.env.SPACESHIP_API_SECRET?.trim();
-  const configKey = storedApiKey();
-  const keychainSecret = storedApiSecret();
+  const storedKey = storedApiKey();
+  const storedSecret = storedApiSecret();
 
-  const apiKey = envKey || configKey || null;
-  const apiSecret = envSecret || keychainSecret || null;
+  const apiKey = envKey || storedKey || null;
+  const apiSecret = envSecret || storedSecret || null;
 
   const result = await runDoctor([
     async (): Promise<DoctorCheck> => ({
       name: "api key",
       ok: Boolean(apiKey),
       detail: apiKey
-        ? `${mask(apiKey)} from ${envKey ? "SPACESHIP_API_KEY" : "stored config"}`
+        ? `${mask(apiKey)} from ${envKey ? "SPACESHIP_API_KEY" : "keychain"}`
         : "not set — run `spaceship auth login`",
     }),
     async (): Promise<DoctorCheck> => ({

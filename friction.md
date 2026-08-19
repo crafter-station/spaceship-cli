@@ -196,3 +196,15 @@ un CLI que administra dominios de terceros.
 - The doctor reports credential *presence and origin*, never values: the key is
   masked, the secret is reported as a character count. Verified that neither the
   human nor the JSON output contains the secret.
+
+## credentials moved to the keychain
+
+- The credentials existed in `~/.crafters/config.json`, which the `crafters` CLI
+  writes for the crafter.run domains. Reading another tool's config file made
+  this CLI depend on a path it does not own and cannot guarantee, so both halves
+  were copied into the keychain (`spaceship-cli`, accounts `api_key` and
+  `api_secret`) and the file read was removed entirely.
+- Verified by renaming the file and running `doctor`: still works.
+- The key is not secret on its own, but keeping the pair in one place means one
+  thing to rotate and one to revoke. The config file is now only a fallback for
+  systems with no keychain.
