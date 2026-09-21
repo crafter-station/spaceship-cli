@@ -54,6 +54,12 @@ parsing `--help`.
 API, and stores both in the OS keychain. `SPACESHIP_API_KEY` and
 `SPACESHIP_API_SECRET` also work and take precedence over stored ones.
 
+A key issued for one job (DNS only, say) is accepted: the API authenticates it
+and only refuses the `domains:read` scope, which `auth login` and `doctor`
+report as `scoped` rather than as a failure. `spaceship schema --json` lists the
+scope each operation needs, so a 403 on a later command means the key, not the
+credentials, is the problem.
+
 ### Profiles
 
 One machine can hold several accounts. Each is a profile: a named key and

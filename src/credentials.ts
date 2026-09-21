@@ -1,7 +1,9 @@
 import { AppError } from "./cli/foundation/error-map.js";
-import type { ClientOptions, Credentials } from "./client.js";
+import type { ClientOptions, Credentials, SpaceshipClient } from "./client.js";
+import type { RateLimitState } from "./contract.js";
 import { credentialStore, type CredentialSource, type CredentialStore } from "./keychain.js";
 import { DEFAULT_PROFILE, type ProfileSelection } from "./profiles.js";
+import type { Paged } from "./types.js";
 
 export type ResolvedCredentials = {
   profile: ProfileSelection;
@@ -81,6 +83,31 @@ export function loadCredentials(
   }
 
   return { apiKey: resolved.apiKey, apiSecret: resolved.apiSecret, account: accountLabel(resolved) };
+}
+
+export type Verification = {
+  /** How many domains the account holds, or null when the key may not list them. */
+  domains: number | null;
+  /** The API authenticated the key but refused the domains:read scope. */
+  scoped: boolean;
+  rateLimit: RateLimitState | null;
+};
+
+/**
+ * Proves a pair against the API. A 403 counts as proof: the API authenticated
+ * the key and only refused the scope, which is what a key issued for one job
+ * (DNS only, say) looks like. A wrong key or secret is a 401 and still fails.
+ */
+export async function verifyCredentials(client: SpaceshipClient): Promise<Verification> {
+  try {
+    const { data, rateLimit } = await client.get<Paged<unknown>>("/v1/domains", { take: 1, skip: 0 });
+    return { domains: data.total, scoped: false, rateLimit };
+  } catch (error) {
+    if (error instanceof AppError && error.code === "auth.missing-scope") {
+      return { domains: null, scoped: true, rateLimit: null };
+    }
+    throw error;
+  }
 }
 
 /**

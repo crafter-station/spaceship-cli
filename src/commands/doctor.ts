@@ -4,12 +4,11 @@ import { bold, danger, dim, muted, ok as okColor, padVisible, warn } from "../cl
 import { EXIT, type ExitCode } from "../contract.js";
 import { emitResult, type EmitContext } from "../output/envelope.js";
 import { SpaceshipClient } from "../client.js";
-import { accountLabel, clientOptions, resolveCredentials } from "../credentials.js";
+import { accountLabel, clientOptions, resolveCredentials, verifyCredentials } from "../credentials.js";
 import type { CredentialSource } from "../keychain.js";
 import { DEFAULT_PROFILE, describeProfileSource, type ProfileSelection } from "../profiles.js";
 import { paths } from "../audit.js";
 import { join } from "node:path";
-import type { Paged } from "../types.js";
 
 /**
  * Answers "is this thing set up correctly" without ever printing a secret.
@@ -68,12 +67,23 @@ export async function doctor(
       }
       try {
         const client = new SpaceshipClient({ apiKey, apiSecret }, clientOptions(args.url ? { SPACESHIP_API_URL: args.url } as NodeJS.ProcessEnv : undefined));
-        const { data, rateLimit } = await client.get<Paged<unknown>>("/v1/domains", { take: 1, skip: 0 });
-        const budget = rateLimit ? `, ${rateLimit.remaining}/${rateLimit.limit} requests left` : "";
+        const verified = await verifyCredentials(client);
+        if (verified.scoped) {
+          // Authenticated, just not allowed to list domains: a key issued for
+          // one job. That is a working setup, so the check passes and says so.
+          return {
+            name: "credentials work",
+            ok: true,
+            detail: "accepted; scoped key without domains:read, so the domain count is unknown",
+          };
+        }
+        const budget = verified.rateLimit
+          ? `, ${verified.rateLimit.remaining}/${verified.rateLimit.limit} requests left`
+          : "";
         return {
           name: "credentials work",
           ok: true,
-          detail: `${data.total} domain${data.total === 1 ? "" : "s"} in this account${budget}`,
+          detail: `${verified.domains} domain${verified.domains === 1 ? "" : "s"} in this account${budget}`,
         };
       } catch (error) {
         return {

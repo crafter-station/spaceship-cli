@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { AppError } from "./cli/foundation/error-map.js";
-import { accountLabel, loadCredentials, resolveCredentials } from "./credentials.js";
+import { SpaceshipClient } from "./client.js";
+import { accountLabel, loadCredentials, resolveCredentials, verifyCredentials } from "./credentials.js";
 import type { CredentialStore } from "./keychain.js";
 import type { ProfileSelection, ProfileSource } from "./profiles.js";
 
@@ -101,5 +102,44 @@ describe("accountLabel", () => {
 
   test("reports the profile name when both halves are stored", () => {
     expect(accountLabel(resolveCredentials(select("work", "env"), env(), stored))).toBe("work");
+  });
+});
+
+describe("verifyCredentials", () => {
+  /** A client whose every call gets the same answer, so no test reaches the network. */
+  const clientAnswering = (status: number, body: unknown): SpaceshipClient =>
+    new SpaceshipClient(
+      { apiKey: "k", apiSecret: "s" },
+      {
+        maxRetries: 0,
+        fetchImpl: async () =>
+          new Response(JSON.stringify(body), {
+            status,
+            headers: { "content-type": status >= 400 ? "application/problem+json" : "application/json" },
+          }),
+      },
+    );
+
+  test("a key that can list domains reports the count", async () => {
+    await expect(verifyCredentials(clientAnswering(200, { items: [], total: 7 }))).resolves.toMatchObject({
+      domains: 7,
+      scoped: false,
+    });
+  });
+
+  test("a key without domains:read still passes, marked as scoped", async () => {
+    // A 403 means the API authenticated the key and refused the scope. A key
+    // issued for DNS only must be storable as a profile all the same.
+    await expect(
+      verifyCredentials(clientAnswering(403, { detail: "Insufficient Permissions." })),
+    ).resolves.toEqual({ domains: null, scoped: true, rateLimit: null });
+  });
+
+  test("a wrong key or secret still fails", async () => {
+    const error = (await verifyCredentials(clientAnswering(401, { detail: "nope" })).catch(
+      (e) => e,
+    )) as AppError;
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe("auth.rejected");
   });
 });
