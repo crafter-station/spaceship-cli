@@ -30,6 +30,7 @@ describe("bundled skills", () => {
       "auth status",
       "auth whoami",
       "auth logout",
+      "auth use",
       "portfolio lint",
       "portfolio rules",
       "skills list",

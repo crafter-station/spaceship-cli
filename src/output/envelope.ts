@@ -14,6 +14,12 @@ import { CONTRACT_VERSION, EXIT, type Envelope, type ExitCode, type NextStep, ty
 export type EmitContext = {
   command: string;
   flags: EmitOptions;
+  /**
+   * Whose credentials the client holds: a profile name, or "environment" when
+   * SPACESHIP_API_KEY won. Set once a client is built, so previews and receipts
+   * can name the account a write hits.
+   */
+  account?: string;
 };
 
 export function newRequestId(): string {

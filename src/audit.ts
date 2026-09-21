@@ -39,6 +39,8 @@ export type AuditContext = {
   command: string;
   target: string;
   trust: string;
+  /** The account the write was made as: a profile name, or "environment". */
+  profile?: string;
   request: { method: string; path: string; body: unknown };
 };
 
@@ -49,6 +51,7 @@ export function auditBegin(ctx: AuditContext): AuditLifecycle {
       kind: "mutation",
       command: ctx.command,
       tier: ctx.trust,
+      ...(ctx.profile ? { profile: ctx.profile } : {}),
       meta: {
         target: ctx.target,
         method: ctx.request.method,

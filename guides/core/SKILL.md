@@ -54,6 +54,27 @@ parsing `--help`.
 API, and stores both in the OS keychain. `SPACESHIP_API_KEY` and
 `SPACESHIP_API_SECRET` also work and take precedence over stored ones.
 
+### Profiles
+
+One machine can hold several accounts. Each is a profile: a named key and
+secret in the keychain, `default` being the first login.
+
+```bash
+spaceship auth login --profile work    # store a second account
+spaceship domains list --profile work  # act as it for one command
+spaceship auth use work                # act as it until changed
+spaceship auth status --json           # active profile, its source, and every stored one
+```
+
+Resolution order: `--profile`, then `SPACESHIP_PROFILE`, then the profile set
+with `auth use`, then `default`. Credentials in the environment override a
+stored profile unless `--profile` is on the command line.
+
+When acting for a user with more than one account, pass `--profile` on every
+write rather than relying on `auth use`. Previews, approval prompts and audit
+receipts carry the account as `account`; check it before `--apply`. A profile
+that is not stored fails with exit 3 and names the login command.
+
 Before doing anything else, check the setup:
 
 ```bash

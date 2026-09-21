@@ -49,10 +49,11 @@ const line = (text: string): void => {
   process.stdout.write(`${text}\n`);
 };
 
-function renderPreview<T>(mutation: Mutation<T>, willApply: boolean): void {
+function renderPreview<T>(mutation: Mutation<T>, willApply: boolean, account?: string): void {
   line("");
   line(`${willApply ? warn("about to change") : dim("would change")}  ${bold(mutation.target)}`);
   line(`  ${mutation.summary}`);
+  if (account) line(`  ${dim("account".padEnd(14))} ${account}`);
   for (const [key, value] of Object.entries(mutation.details ?? {})) {
     if (value === undefined || value === null || value === "") continue;
     line(`  ${dim(key.padEnd(14))} ${String(value)}`);
@@ -82,10 +83,11 @@ export async function runMutation<T>(
       reason: flags.dryRun === true ? "dry run" : "add --apply to perform this change",
       request: { method: mutation.method, path: mutation.path, body: mutation.body ?? null },
       target: mutation.target,
+      account: ctx.account ?? null,
       trust: mutation.trust,
       summary: mutation.summary,
     };
-    return emitResult(ctx, preview, { requestId }, () => renderPreview(mutation, false));
+    return emitResult(ctx, preview, { requestId }, () => renderPreview(mutation, false, ctx.account));
   }
 
   // Checked after the preview so --dry-run still works while writes are frozen.
@@ -96,7 +98,9 @@ export async function runMutation<T>(
     {
       title: mutation.command,
       summary: `${mutation.summary} on ${mutation.target}`,
-      details: mutation.details,
+      // The account leads the details: it is the one thing a person with two
+      // accounts has to check before saying yes.
+      details: ctx.account ? { account: ctx.account, ...mutation.details } : mutation.details,
       warning: mutation.warning,
     },
     {
@@ -122,6 +126,7 @@ export async function runMutation<T>(
     command: mutation.command,
     target: mutation.target,
     trust: mutation.trust,
+    profile: ctx.account,
     request: { method: mutation.method, path: mutation.path, body: mutation.body ?? null },
   });
 

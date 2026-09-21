@@ -19,6 +19,7 @@ import { doctor } from "./commands/doctor.js";
 import { skillsGet, skillsList, skillsPath } from "./commands/skills.js";
 import type { MutateFlags } from "./mutate.js";
 import { commandNames, OPERATIONS } from "./registry.js";
+import { selectProfile } from "./profiles.js";
 import { AppError } from "./cli/foundation/error-map.js";
 import { VERSION } from "./version.generated.js";
 
@@ -54,12 +55,14 @@ function helpText(): string {
     `  --yes           approve a gated write without a prompt`,
     `  --confirm <id>  required for money and delete operations; must match the target`,
     `  --wait          poll an async operation until it settles`,
+    `  --profile <p>   act as another stored account (store one with auth login --profile <p>)`,
     `  --help          show this text`,
     `  --version       print the version and exit`,
     "",
     `${dim("GETTING STARTED")}`,
     `  ${NAME} auth login          store an API key and secret`,
-    `  ${NAME} auth status         show whether credentials are in place`,
+    `  ${NAME} auth status         show whether credentials are in place, and which profile is active`,
+    `  ${NAME} auth use <name>     switch every command to another stored account`,
     `  ${NAME} doctor              check credentials, reach the API, report what is set`,
     "",
     `${dim("DISCOVERY")}`,
@@ -104,12 +107,18 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
   const ctx: EmitContext = { command: isTriple ? positional.slice(0, 3).join(" ") : command, flags };
 
   try {
+    // Which account to act as. Resolved before anything runs so a bad name
+    // fails ahead of any prompt or network call; the keychain itself is not
+    // read until a command actually needs credentials.
+    const profile = selectProfile(parsed.profile);
+
     // Auth runs before the credential check: these are the commands that
     // establish credentials, so requiring them would be circular.
-    if (command === "auth login") return await auth.authLogin(ctx, parsed);
-    if (command === "auth status") return auth.authStatus(ctx);
-    if (command === "auth whoami") return auth.authWhoami(ctx);
-    if (command === "auth logout") return auth.authLogout(ctx);
+    if (command === "auth login") return await auth.authLogin(ctx, parsed, profile);
+    if (command === "auth status") return auth.authStatus(ctx, profile);
+    if (command === "auth whoami") return auth.authWhoami(ctx, profile);
+    if (command === "auth logout") return auth.authLogout(ctx, profile);
+    if (command === "auth use") return auth.authUse(ctx, positional[2]);
 
     // Skills come from the bundle, so they need neither credentials nor network.
     if (positional[0] === "skills") {
@@ -127,6 +136,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
     if (positional[0] === "doctor") {
       return await doctor({ ...ctx, command: "doctor" }, {
         url: typeof parsed.url === "string" ? parsed.url : undefined,
+        profile,
       });
     }
 
@@ -228,21 +238,31 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<Exit
       "market checkout-link": (client) => money.marketCheckoutLink(ctx, client, mutateFlags, parsed),
     };
 
+    // Built once, whichever table the command lands in. Recording the account
+    // on the context is what lets a preview or receipt say which one a write
+    // hit, which is the difference between "deleted example.com" and "deleted
+    // it in the wrong account".
+    const connect = (): SpaceshipClient => {
+      const credentials = loadCredentials(profile);
+      ctx.account = credentials.account;
+      return new SpaceshipClient(credentials, clientOptions());
+    };
+
     const writeHandler = writeHandlers[command];
     if (writeHandler) {
-      const client = new SpaceshipClient(loadCredentials(), clientOptions());
+      const client = connect();
       return await writeHandler(client);
     }
 
     const tripleHandler = tripleHandlers[triple];
     if (tripleHandler) {
-      const client = new SpaceshipClient(loadCredentials(), clientOptions());
+      const client = connect();
       return await tripleHandler(client);
     }
 
     const handler = readHandlers[command];
     if (handler) {
-      const client = new SpaceshipClient(loadCredentials(), clientOptions());
+      const client = connect();
       return await handler(client);
     }
 
