@@ -2,7 +2,7 @@ import { AppError } from "../cli/foundation/error-map.js";
 import { promptSecret } from "../cli/agent/prompt-secret.js";
 import { bold, dim, muted, ok, warn } from "../cli/platform/style.js";
 import { SpaceshipClient } from "../client.js";
-import { accountLabel, clientOptions, resolveCredentials } from "../credentials.js";
+import { accountLabel, clientOptions, resolveCredentials, verifyCredentials } from "../credentials.js";
 import type { ExitCode } from "../contract.js";
 import { forgetCredentials, hasKeychain, storeCredentials, storedProfiles } from "../keychain.js";
 import { emitResult, type EmitContext } from "../output/envelope.js";
@@ -13,7 +13,6 @@ import {
   type ProfileSelection,
   setDefaultProfile,
 } from "../profiles.js";
-import type { Paged } from "../types.js";
 
 /**
  * Credentials are an API key and a secret, kept per profile. The key
@@ -85,9 +84,10 @@ export async function authLogin(
   }
 
   // Verified against the API before being stored, so a typo fails here rather
-  // than on the next command.
+  // than on the next command. A key issued for one job (DNS only, say) passes
+  // too: the API authenticates it and only refuses the scope.
   const client = new SpaceshipClient({ apiKey, apiSecret }, clientOptions());
-  const { data } = await client.get<Paged<unknown>>("/v1/domains", { take: 1, skip: 0 });
+  const verified = await verifyCredentials(client);
 
   const savedToKeychain = storeCredentials(profile.name, apiKey, apiSecret) === "keychain";
 
@@ -97,19 +97,25 @@ export async function authLogin(
       verified: true,
       profile: profile.name,
       apiKey: maskKey(apiKey),
-      domains: data.total,
+      scoped: verified.scoped,
+      domains: verified.domains,
       secretStoredIn: savedToKeychain ? "keychain" : "environment only",
     },
     {
       nextSteps: [
-        { command: `spaceship domains list${profileFlag(profile)}`, reason: "See what the account holds" },
+        verified.scoped
+          ? { command: "spaceship schema --json", reason: "This key has no domains:read; each operation lists the scope it needs" }
+          : { command: `spaceship domains list${profileFlag(profile)}`, reason: "See what the account holds" },
         ...(profile.source === "flag"
           ? [{ command: `spaceship auth use ${profile.name}`, reason: "Make it the default for every command" }]
           : []),
       ],
     },
     (result) => {
-      line(`\n${ok("signed in")}  ${muted(`${result.domains} domain${result.domains === 1 ? "" : "s"} in this account`)}`);
+      const summary = result.scoped
+        ? "accepted; scoped key without domains:read"
+        : `${result.domains} domain${result.domains === 1 ? "" : "s"} in this account`;
+      line(`\n${ok("signed in")}  ${muted(summary)}`);
       line(`  ${dim("profile")}  ${result.profile}`);
       line(`  ${dim("key")}      ${result.apiKey}`);
       if (savedToKeychain) {

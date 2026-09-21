@@ -56,6 +56,10 @@ The environment variables still override stored credentials, except when
 exported some time ago. Previews, approval prompts and audit receipts name the
 account a write hits.
 
+A key scoped to one job (DNS only, say) works as a profile too: `auth login`
+and `doctor` treat "authenticated, but no `domains:read`" as a pass and say
+`scoped`.
+
 ## Agent skills
 
 The CLI serves its own instructions, so what an agent reads always matches the
