@@ -40,6 +40,22 @@ spaceship doctor        # confirms it works, without printing anything secret
 
 `SPACESHIP_API_KEY` and `SPACESHIP_API_SECRET` also work and take precedence.
 
+More than one account? Each is a *profile*: a named key and secret in the
+keychain. The first login is the `default` profile.
+
+```bash
+spaceship auth login --profile work     # a second account, under a name
+spaceship domains list --profile work   # one command as that account
+spaceship auth use work                 # every command as that account, until changed
+spaceship auth status                   # which profile is active, and which are stored
+```
+
+`SPACESHIP_PROFILE=work` does what `--profile work` does, for a whole shell.
+The environment variables still override stored credentials, except when
+`--profile` is on the command line: a flag typed just now beats a variable
+exported some time ago. Previews, approval prompts and audit receipts name the
+account a write hits.
+
 ## Agent skills
 
 The CLI serves its own instructions, so what an agent reads always matches the

@@ -89,3 +89,34 @@ export function listProfiles(configDir: string): string[] {
     return [];
   }
 }
+
+function readConfigFile<T>(configDir: string): ConfigFile<T> {
+  const filePath = join(configDir, "config.json");
+  if (!existsSync(filePath)) return {};
+  try {
+    return JSON.parse(readFileSync(filePath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Reads one profile's own entries, without the defaults merged in.
+ * Returns undefined when the profile has no section.
+ */
+export function readProfile<T extends Record<string, unknown>>(
+  configDir: string,
+  profile: string,
+): Partial<T> | undefined {
+  return readConfigFile<T>(configDir).profiles?.[profile];
+}
+
+/**
+ * Removes a profile's section. The defaults and every other profile stay.
+ */
+export function removeProfile(configDir: string, profile: string): void {
+  const existing = readConfigFile<Record<string, unknown>>(configDir);
+  if (!existing.profiles || !(profile in existing.profiles)) return;
+  const { [profile]: _removed, ...profiles } = existing.profiles;
+  atomicWriteJson(join(configDir, "config.json"), { ...existing, profiles });
+}

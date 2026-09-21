@@ -4,8 +4,9 @@ import { bold, danger, dim, muted, ok as okColor, padVisible, warn } from "../cl
 import { EXIT, type ExitCode } from "../contract.js";
 import { emitResult, type EmitContext } from "../output/envelope.js";
 import { SpaceshipClient } from "../client.js";
-import { clientOptions } from "../credentials.js";
-import { storedApiKey, storedApiSecret } from "./auth.js";
+import { accountLabel, clientOptions, resolveCredentials } from "../credentials.js";
+import type { CredentialSource } from "../keychain.js";
+import { DEFAULT_PROFILE, describeProfileSource, type ProfileSelection } from "../profiles.js";
 import { paths } from "../audit.js";
 import { join } from "node:path";
 import type { Paged } from "../types.js";
@@ -22,29 +23,44 @@ const line = (text: string): void => {
 const mask = (value: string): string =>
   value.length <= 8 ? "•".repeat(value.length) : `${value.slice(0, 4)}${"•".repeat(Math.min(value.length - 8, 12))}${value.slice(-4)}`;
 
-export async function doctor(ctx: EmitContext, args: { url?: string } = {}): Promise<ExitCode> {
-  const envKey = process.env.SPACESHIP_API_KEY?.trim();
-  const envSecret = process.env.SPACESHIP_API_SECRET?.trim();
-  const storedKey = storedApiKey();
-  const storedSecret = storedApiSecret();
+/** Names the variable rather than "environment", since that is what the user would unset. */
+const origin = (source: CredentialSource | null, variable: string): string =>
+  source === "environment" ? variable : (source ?? "nowhere");
 
-  const apiKey = envKey || storedKey || null;
-  const apiSecret = envSecret || storedSecret || null;
+export async function doctor(
+  ctx: EmitContext,
+  args: { url?: string; profile?: ProfileSelection } = {},
+): Promise<ExitCode> {
+  const profile = args.profile ?? { name: DEFAULT_PROFILE, source: "default" as const };
+  const resolved = resolveCredentials(profile);
+  const { apiKey, apiSecret } = resolved;
+  const loginCommand = `spaceship auth login${profile.source === "flag" ? ` --profile ${profile.name}` : ""}`;
 
   const result = await runDoctor([
+    async (): Promise<DoctorCheck> => {
+      const chosen = profile.source === "default" ? profile.name : `${profile.name} (${describeProfileSource(profile.source)})`;
+      // A stored profile that the environment out-ranks is the setup most
+      // likely to surprise, so the row says which one actually applies.
+      const overridden = apiKey && accountLabel(resolved) === "environment" && profile.source !== "default";
+      return {
+        name: "profile",
+        ok: true,
+        detail: overridden ? `${chosen}, overridden by SPACESHIP_API_KEY` : chosen,
+      };
+    },
     async (): Promise<DoctorCheck> => ({
       name: "api key",
       ok: Boolean(apiKey),
       detail: apiKey
-        ? `${mask(apiKey)} from ${envKey ? "SPACESHIP_API_KEY" : "keychain"}`
-        : "not set — run `spaceship auth login`",
+        ? `${mask(apiKey)} from ${origin(resolved.keySource, "SPACESHIP_API_KEY")}`
+        : `not set — run \`${loginCommand}\``,
     }),
     async (): Promise<DoctorCheck> => ({
       name: "api secret",
       ok: Boolean(apiSecret),
       detail: apiSecret
-        ? `${apiSecret.length} characters from ${envSecret ? "SPACESHIP_API_SECRET" : "keychain"}`
-        : "not set — run `spaceship auth login`",
+        ? `${apiSecret.length} characters from ${origin(resolved.secretSource, "SPACESHIP_API_SECRET")}`
+        : `not set — run \`${loginCommand}\``,
     }),
     async (): Promise<DoctorCheck> => {
       if (!apiKey || !apiSecret) {
@@ -89,7 +105,7 @@ export async function doctor(ctx: EmitContext, args: { url?: string } = {}): Pro
     ctx,
     result,
     {
-      nextSteps: result.ok ? [] : [{ command: "spaceship auth login", reason: "Store working credentials" }],
+      nextSteps: result.ok ? [] : [{ command: loginCommand, reason: "Store working credentials" }],
     },
     (data) => {
       line("");
@@ -103,7 +119,7 @@ export async function doctor(ctx: EmitContext, args: { url?: string } = {}): Pro
       line(
         data.ok
           ? `${okColor("ready")} ${muted("credentials verified against the API")}`
-          : `${warn("not ready")} ${muted("run `spaceship auth login`")}`,
+          : `${warn("not ready")} ${muted(`run \`${loginCommand}\``)}`,
       );
       line("");
     },

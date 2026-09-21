@@ -55,7 +55,7 @@ const mutation = {
   summary: "turn auto-renew on",
 };
 
-const auditRecords = (): { result: string; command: string }[] => {
+const auditRecords = (): { result: string; command: string; profile?: string }[] => {
   const dir = join(home, "audit");
   try {
     return readdirSync(dir)
@@ -86,6 +86,44 @@ describe("--dry-run", () => {
     const { client: api, calls } = client(() => okResponse());
     await runMutation(ctx, api, { apply: true, dryRun: true }, mutation);
     expect(calls()).toBe(0);
+  });
+});
+
+describe("the account a write hits", () => {
+  // The envelope goes to stdout, so it is captured here to read the preview.
+  const capture = async (run: () => Promise<unknown>): Promise<string> => {
+    const original = process.stdout.write.bind(process.stdout);
+    let out = "";
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      out += String(chunk);
+      return true;
+    }) as typeof process.stdout.write;
+    try {
+      await run();
+    } finally {
+      process.stdout.write = original;
+    }
+    return out;
+  };
+
+  test("the preview names it, so a dry run shows which account would change", async () => {
+    const { client: api } = client(() => okResponse());
+    const out = await capture(() => runMutation({ ...ctx, account: "work" }, api, {}, mutation));
+    expect(JSON.parse(out).result.account).toBe("work");
+  });
+
+  test("the preview says null rather than guessing when no account is known", async () => {
+    const { client: api } = client(() => okResponse());
+    const out = await capture(() => runMutation(ctx, api, {}, mutation));
+    expect(JSON.parse(out).result.account).toBeNull();
+  });
+
+  test("both receipts record it", async () => {
+    const { client: api } = client(() => okResponse());
+    await capture(() =>
+      runMutation({ ...ctx, account: "work" }, api, { apply: true, yes: true }, mutation),
+    );
+    expect(auditRecords().map((r) => r.profile)).toEqual(["work", "work"]);
   });
 });
 

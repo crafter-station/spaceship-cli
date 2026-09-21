@@ -1,87 +1,60 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { homedir, platform } from "node:os";
-import { join } from "node:path";
 import { AppError } from "../cli/foundation/error-map.js";
 import { promptSecret } from "../cli/agent/prompt-secret.js";
-import { loadConfig, saveConfig } from "../cli/foundation/config.js";
 import { bold, dim, muted, ok, warn } from "../cli/platform/style.js";
 import { SpaceshipClient } from "../client.js";
-import { clientOptions } from "../credentials.js";
-import { EXIT, type ExitCode } from "../contract.js";
+import { accountLabel, clientOptions, resolveCredentials } from "../credentials.js";
+import type { ExitCode } from "../contract.js";
+import { forgetCredentials, hasKeychain, storeCredentials, storedProfiles } from "../keychain.js";
 import { emitResult, type EmitContext } from "../output/envelope.js";
-import { paths } from "../audit.js";
+import {
+  assertProfileName,
+  DEFAULT_PROFILE,
+  describeProfileSource,
+  type ProfileSelection,
+  setDefaultProfile,
+} from "../profiles.js";
 import type { Paged } from "../types.js";
 
 /**
- * Credentials are an API key and a secret. The key identifies the credential
- * and may be stored in the config file; the secret proves it and goes to the OS
- * keychain, never to a file in a repo.
+ * Credentials are an API key and a secret, kept per profile. The key
+ * identifies the credential, the secret proves it, and both go to the OS
+ * keychain, never to a file in a repo. Every command here acts on the active
+ * profile, so `auth login --profile work` and `auth logout --profile work`
+ * touch that one and nothing else.
  */
-
-const SERVICE = "spaceship-cli";
-const KEY_ACCOUNT = "api_key";
-const SECRET_ACCOUNT = "api_secret";
-
-type StoredConfig = Record<string, unknown> & { apiKey?: string };
 
 const line = (text: string): void => {
   process.stdout.write(`${text}\n`);
 };
 
-// --------------------------------------------------------------- keychain
-
-const hasKeychain = (): boolean => platform() === "darwin";
-
-function keychainRead(account: string): string | null {
-  if (!hasKeychain()) return null;
-  const result = spawnSync(
-    "security",
-    ["find-generic-password", "-s", SERVICE, "-a", account, "-w"],
-    { encoding: "utf8" },
-  );
-  if (result.status !== 0) return null;
-  return result.stdout.trim() || null;
-}
-
-function keychainWrite(account: string, value: string): boolean {
-  if (!hasKeychain()) return false;
-  // -U updates in place when the entry already exists. The value is passed as
-  // an argument to `security` only; it is never written to a file or a log.
-  const result = spawnSync(
-    "security",
-    ["add-generic-password", "-s", SERVICE, "-a", account, "-w", value, "-U"],
-    { encoding: "utf8" },
-  );
-  return result.status === 0;
-}
-
-function keychainDelete(account: string): boolean {
-  if (!hasKeychain()) return false;
-  const result = spawnSync("security", ["delete-generic-password", "-s", SERVICE, "-a", account], {
-    encoding: "utf8",
-  });
-  return result.status === 0;
-}
-
-// ------------------------------------------------------------ stored config
-
-export function storedApiKey(): string | null {
-  const fromKeychain = keychainRead(KEY_ACCOUNT);
-  if (fromKeychain) return fromKeychain;
-  const config = loadConfig<StoredConfig>(paths().config);
-  return typeof config.apiKey === "string" && config.apiKey !== "" ? config.apiKey : null;
-}
-
-export const storedApiSecret = (): string | null => keychainRead(SECRET_ACCOUNT);
-
 /** Masked for display: enough to recognise the key, not enough to use it. */
 const maskKey = (key: string): string =>
   key.length <= 8 ? "•".repeat(key.length) : `${key.slice(0, 4)}${"•".repeat(key.length - 8)}${key.slice(-4)}`;
 
+/** The flag to repeat so the next command lands on the same profile. */
+const profileFlag = (profile: ProfileSelection): string =>
+  profile.source === "flag" ? ` --profile ${profile.name}` : "";
+
+const describeProfile = (profile: ProfileSelection): string =>
+  profile.source === "default" ? profile.name : `${profile.name} ${muted(`(${describeProfileSource(profile.source)})`)}`;
+
 // ----------------------------------------------------------------- commands
 
-export async function authLogin(ctx: EmitContext, args: Record<string, unknown>): Promise<ExitCode> {
+export async function authLogin(
+  ctx: EmitContext,
+  args: Record<string, unknown>,
+  profile: ProfileSelection,
+): Promise<ExitCode> {
+  // A second profile needs a second secret somewhere, and the config file is
+  // not that place. Better to say so before asking the user to paste anything.
+  if (profile.name !== DEFAULT_PROFILE && !hasKeychain()) {
+    throw new AppError("usage", {
+      name: "NoKeychain",
+      human: "Named profiles need an OS keychain to hold each secret, and this platform has none.",
+      hint: "Use SPACESHIP_API_KEY and SPACESHIP_API_SECRET per shell instead.",
+    });
+  }
+
   const flagKey = typeof args.key === "string" ? args.key : undefined;
   const flagSecret = typeof args.secret === "string" ? args.secret : undefined;
 
@@ -116,80 +89,100 @@ export async function authLogin(ctx: EmitContext, args: Record<string, unknown>)
   const client = new SpaceshipClient({ apiKey, apiSecret }, clientOptions());
   const { data } = await client.get<Paged<unknown>>("/v1/domains", { take: 1, skip: 0 });
 
-  // Both halves go to the keychain. The key is not secret on its own, but
-  // keeping the pair together means one place to rotate and one to revoke.
-  const savedToKeychain = keychainWrite(SECRET_ACCOUNT, apiSecret) && keychainWrite(KEY_ACCOUNT, apiKey);
-  if (!savedToKeychain) saveConfig(paths().config, { defaults: { apiKey } });
+  const savedToKeychain = storeCredentials(profile.name, apiKey, apiSecret) === "keychain";
 
   return emitResult(
     ctx,
     {
       verified: true,
+      profile: profile.name,
       apiKey: maskKey(apiKey),
       domains: data.total,
       secretStoredIn: savedToKeychain ? "keychain" : "environment only",
     },
     {
-      nextSteps: [{ command: "spaceship domains list", reason: "See what the account holds" }],
+      nextSteps: [
+        { command: `spaceship domains list${profileFlag(profile)}`, reason: "See what the account holds" },
+        ...(profile.source === "flag"
+          ? [{ command: `spaceship auth use ${profile.name}`, reason: "Make it the default for every command" }]
+          : []),
+      ],
     },
     (result) => {
       line(`\n${ok("signed in")}  ${muted(`${result.domains} domain${result.domains === 1 ? "" : "s"} in this account`)}`);
-      line(`  ${dim("key")}     ${result.apiKey}`);
+      line(`  ${dim("profile")}  ${result.profile}`);
+      line(`  ${dim("key")}      ${result.apiKey}`);
       if (savedToKeychain) {
-        line(`  ${dim("secret")}  stored in your keychain\n`);
+        line(`  ${dim("secret")}   stored in your keychain\n`);
       } else {
-        line(`  ${dim("secret")}  ${warn("not stored")}`);
+        line(`  ${dim("secret")}   ${warn("not stored")}`);
         line(`  ${muted("No OS keychain here. Set SPACESHIP_API_SECRET in your environment.")}\n`);
       }
     },
   );
 }
 
-export function authStatus(ctx: EmitContext): ExitCode {
-  const envKey = process.env.SPACESHIP_API_KEY;
-  const envSecret = process.env.SPACESHIP_API_SECRET;
-  const keychainKey = keychainRead(KEY_ACCOUNT);
-  const config = loadConfig<StoredConfig>(paths().config);
-  const configKey = typeof config.apiKey === "string" && config.apiKey !== "" ? config.apiKey : null;
-  const keychainSecret = keychainRead(SECRET_ACCOUNT);
+export function authStatus(ctx: EmitContext, profile: ProfileSelection): ExitCode {
+  const resolved = resolveCredentials(profile);
+  const account = accountLabel(resolved);
+  const profiles = storedProfiles();
+  const authenticated = Boolean(resolved.apiKey && resolved.apiSecret);
 
-  const apiKey = envKey ?? keychainKey ?? configKey;
-  const hasSecret = Boolean(envSecret ?? keychainSecret);
+  // A profile picked by SPACESHIP_PROFILE or `auth use` loses to credentials
+  // in the environment. Saying so beats letting the user believe it is in play.
+  const overridden = authenticated && account === "environment" && profile.source !== "default";
 
   return emitResult(
     ctx,
     {
-      authenticated: Boolean(apiKey) && hasSecret,
-      apiKey: apiKey ? maskKey(apiKey) : null,
-      keySource: envKey ? "environment" : keychainKey ? "keychain" : configKey ? "config file" : null,
-      secretSource: envSecret ? "environment" : keychainSecret ? "keychain" : null,
+      authenticated,
+      profile: profile.name,
+      profileSource: profile.source,
+      account,
+      apiKey: resolved.apiKey ? maskKey(resolved.apiKey) : null,
+      keySource: resolved.keySource,
+      secretSource: resolved.secretSource,
+      profiles,
     },
     {
-      nextSteps: apiKey && hasSecret ? [] : [{ command: "spaceship auth login", reason: "Store credentials" }],
+      nextSteps: authenticated
+        ? []
+        : [{ command: `spaceship auth login${profileFlag(profile)}`, reason: "Store credentials" }],
     },
     (result) => {
       line("");
       if (!result.authenticated) {
         line(`${warn("not signed in")}`);
-        line(`  ${muted("Run")} spaceship auth login`);
+        line(`  ${dim("profile")}  ${describeProfile(profile)}`);
+        line(`  ${muted("Run")} spaceship auth login${profileFlag(profile)}`);
+        if (result.profiles.length > 0) line(`  ${dim("stored")}   ${muted(result.profiles.join(", "))}`);
         line("");
         return;
       }
       line(`${ok("signed in")}`);
-      line(`  ${dim("key")}     ${result.apiKey} ${muted(`(from ${result.keySource})`)}`);
-      line(`  ${dim("secret")}  ${muted(`from ${result.secretSource}`)}`);
+      line(`  ${dim("profile")}  ${describeProfile(profile)}`);
+      line(`  ${dim("key")}      ${result.apiKey} ${muted(`(from ${result.keySource})`)}`);
+      line(`  ${dim("secret")}   ${muted(`from ${result.secretSource}`)}`);
+      if (result.profiles.length > 0) line(`  ${dim("stored")}   ${muted(result.profiles.join(", "))}`);
+      if (overridden) {
+        line(
+          `  ${warn("note")}     SPACESHIP_API_KEY is set, so the environment wins over profile "${profile.name}". Pass --profile ${profile.name} to use the stored one.`,
+        );
+      }
       line("");
     },
   );
 }
 
-export function authLogout(ctx: EmitContext): ExitCode {
-  const removed = keychainDelete(SECRET_ACCOUNT);
-  keychainDelete(KEY_ACCOUNT);
-  saveConfig(paths().config, { defaults: { apiKey: "" } });
+export function authWhoami(ctx: EmitContext, profile: ProfileSelection): ExitCode {
+  return authStatus({ ...ctx, command: "auth whoami" }, profile);
+}
 
-  return emitResult(ctx, { cleared: true, secretRemoved: removed }, {}, (result) => {
-    line(`\n${ok("signed out")}`);
+export function authLogout(ctx: EmitContext, profile: ProfileSelection): ExitCode {
+  const { secretRemoved } = forgetCredentials(profile.name);
+
+  return emitResult(ctx, { cleared: true, profile: profile.name, secretRemoved }, {}, (result) => {
+    line(`\n${ok("signed out")}  ${muted(`profile ${result.profile}`)}`);
     if (!result.secretRemoved) {
       line(`  ${muted("No stored secret to remove.")}`);
     }
@@ -202,8 +195,46 @@ export function authLogout(ctx: EmitContext): ExitCode {
   });
 }
 
-export function authWhoami(ctx: EmitContext): ExitCode {
-  return authStatus({ ...ctx, command: "auth whoami" });
-}
+/** Makes a stored profile the one every command uses until changed. */
+export function authUse(ctx: EmitContext, name: string | undefined): ExitCode {
+  if (!name) {
+    throw new AppError("usage", {
+      name: "MissingProfile",
+      human: "auth use needs a profile name.",
+      hint: "`spaceship auth status` lists the stored profiles.",
+    });
+  }
+  assertProfileName(name, "auth use");
 
-export { EXIT, bold };
+  // `default` is always allowed: it is how a user gets back to plain behaviour
+  // even after the profile they were using has been logged out.
+  const profiles = storedProfiles();
+  if (name !== DEFAULT_PROFILE && !profiles.includes(name)) {
+    throw new AppError("not-found", {
+      name: "UnknownProfile",
+      human: `No profile "${name}" is stored.`,
+      hint:
+        profiles.length > 0
+          ? `Stored: ${profiles.join(", ")}. Add one with \`spaceship auth login --profile ${name}\`.`
+          : `Add it with \`spaceship auth login --profile ${name}\`.`,
+    });
+  }
+
+  setDefaultProfile(name);
+  const envWins = Boolean(process.env.SPACESHIP_API_KEY || process.env.SPACESHIP_API_SECRET);
+
+  return emitResult(
+    ctx,
+    { profile: name },
+    { nextSteps: [{ command: "spaceship auth status", reason: "Confirm which credentials are in play" }] },
+    () => {
+      line(`\n${ok("using")}  ${bold(name)} ${muted("for every command until changed")}`);
+      if (envWins) {
+        line(
+          `  ${warn("SPACESHIP_API_KEY is set in this shell and still wins.")} ${muted(`Unset it, or pass --profile ${name}.`)}`,
+        );
+      }
+      line("");
+    },
+  );
+}

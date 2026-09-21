@@ -44,6 +44,8 @@ describe("no phantom commands", () => {
       [
         "./client.ts",
         "./credentials.ts",
+        "./profiles.ts",
+        "./keychain.ts",
         "./mutate.ts",
         "./async-ops.ts",
         "./commands/reads.ts",
@@ -61,6 +63,7 @@ describe("no phantom commands", () => {
       "auth status",
       "auth whoami",
       "auth logout",
+      "auth use",
       "portfolio lint",
       "portfolio rules",
       "schema",
