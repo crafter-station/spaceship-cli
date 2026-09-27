@@ -60,7 +60,7 @@ function helpText(): string {
     `  --version       print the version and exit`,
     "",
     `${dim("GETTING STARTED")}`,
-    `  ${NAME} auth login          store an API key and secret`,
+    `  ${NAME} auth login          store an API key ID and secret`,
     `  ${NAME} auth status         show whether credentials are in place, and which profile is active`,
     `  ${NAME} auth use <name>     switch every command to another stored account`,
     `  ${NAME} doctor              check credentials, reach the API, report what is set`,

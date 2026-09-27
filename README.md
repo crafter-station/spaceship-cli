@@ -30,8 +30,9 @@ npx @crafter/spaceship-cli --help
 
 ## Authenticate
 
-Create a key at [spaceship.com/application/api-manager](https://www.spaceship.com/application/api-manager/),
-then:
+Create a key at [spaceship.com/application/api-manager](https://www.spaceship.com/application/api-manager/).
+The portal shows the credential as an **ID** and a **Secret**: paste the ID when
+`auth login` asks for the API key ID. Then:
 
 ```bash
 spaceship auth login    # stores the secret in your OS keychain
