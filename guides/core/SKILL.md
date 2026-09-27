@@ -50,9 +50,11 @@ parsing `--help`.
 
 ## Credentials
 
-`spaceship auth login` prompts for the key and secret, verifies them against the
-API, and stores both in the OS keychain. `SPACESHIP_API_KEY` and
-`SPACESHIP_API_SECRET` also work and take precedence over stored ones.
+`spaceship auth login` prompts for the key ID and secret — the Spaceship API
+Manager shows both as **ID** and **Secret** when the key is created — verifies
+them against the API, and stores both in the OS keychain. `SPACESHIP_API_KEY`
+(the ID) and `SPACESHIP_API_SECRET` also work and take precedence over stored
+ones.
 
 A key issued for one job (DNS only, say) is accepted: the API authenticates it
 and only refuses the `domains:read` scope, which `auth login` and `doctor`

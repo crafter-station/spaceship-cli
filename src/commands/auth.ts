@@ -15,7 +15,7 @@ import {
 } from "../profiles.js";
 
 /**
- * Credentials are an API key and a secret, kept per profile. The key
+ * Credentials are an API key ID and a secret, kept per profile. The ID
  * identifies the credential, the secret proves it, and both go to the OS
  * keychain, never to a file in a repo. Every command here acts on the active
  * profile, so `auth login --profile work` and `auth logout --profile work`
@@ -65,7 +65,7 @@ export async function authLogin(
     );
   }
 
-  const apiKey = flagKey ?? (await promptSecret("API key: ", { mask: "" }));
+  const apiKey = flagKey ?? (await promptSecret("API key ID: ", { mask: "" }));
   if (!apiKey) {
     throw new AppError("usage", {
       name: "NoTTY",
