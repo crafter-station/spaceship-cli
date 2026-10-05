@@ -37,12 +37,17 @@ export type DomainInfo = {
   contacts: { registrant: string; admin?: string; tech?: string; billing?: string };
 };
 
+export type DnsGroup = "custom" | "product" | "personalNs";
+
 export type DnsRecord = {
   type: string;
   name: string;
   ttl?: number;
-  /** custom records are yours; product and personalNs are managed by Spaceship */
-  group: "custom" | "product" | "personalNs";
+  /**
+   * custom records are yours; product and personalNs are managed by Spaceship.
+   * The API returns `{ type }`; the field is response-only and never sent.
+   */
+  group?: DnsGroup | { type: DnsGroup };
   address?: string;
   cname?: string;
   exchange?: string;
@@ -133,3 +138,15 @@ export type HyperliftApp = {
 
 export type HyperliftMetrics = Record<string, unknown>;
 export type HyperliftLogs = { items?: { message?: string; timestamp?: string }[] } & Record<string, unknown>;
+
+export function dnsGroup(record: DnsRecord): DnsGroup {
+  const group = record.group;
+  if (group === undefined) return "custom";
+  return typeof group === "string" ? group : group.type;
+}
+
+/** The record without response-only fields: what PUT and DELETE accept. */
+export function dnsRecordBody(record: DnsRecord): DnsRecord {
+  const { group: _group, ...rest } = record;
+  return rest;
+}

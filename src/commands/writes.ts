@@ -4,7 +4,8 @@ import { bold, dim, muted, ok } from "../cli/platform/style.js";
 import type { ExitCode } from "../contract.js";
 import type { EmitContext } from "../output/envelope.js";
 import { runMutation, type MutateFlags } from "../mutate.js";
-import type { DnsRecord } from "../types.js";
+import { dnsRecordBody, type DnsRecord } from "../types.js";
+import { allDnsRecords } from "./reads.js";
 
 /**
  * T1 and T2 writes. Each builds its request body from the spec's required
@@ -233,7 +234,8 @@ function parseRecord(args: Args): DnsRecord {
   const host = need(name, "a record name", "spaceship dns set example.com A www 76.76.21.21 --apply");
   const ttl = args.ttl === undefined ? undefined : Number(args.ttl);
 
-  const record: DnsRecord = { type: kind, name: host, group: "custom", ...(ttl === undefined ? {} : { ttl }) };
+  // No `group`: it is response-only, and sending it fails the API's validation.
+  const record: DnsRecord = { type: kind, name: host, ...(ttl === undefined ? {} : { ttl }) };
   const content = need(value, "a record value", "spaceship dns set example.com A www 76.76.21.21 --apply");
 
   switch (kind) {
@@ -288,15 +290,56 @@ export async function dnsSet(
   });
 }
 
+const valueOf = (r: DnsRecord): string => r.address ?? r.cname ?? r.exchange ?? r.target ?? r.value ?? "";
+
+/** The one record a delete targets, and the body item the API accepts for it (no group, no ttl). */
+export function deleteItemFor(
+  records: DnsRecord[],
+  domain: string,
+  type: string,
+  name: string,
+  value?: string,
+): { match: DnsRecord; item: DnsRecord } {
+  const matches = records.filter(
+    (r) =>
+      r.type.toUpperCase() === type &&
+      r.name.toLowerCase() === name.toLowerCase() &&
+      (value === undefined || valueOf(r) === value),
+  );
+  if (matches.length === 0) {
+    throw new AppError("not_found", {
+      name: "RecordNotFound",
+      human: `No ${type} record on ${name}${value === undefined ? "" : ` with value ${value}`} in ${domain}.`,
+      hint: `See what exists: spaceship dns list ${domain}`,
+    });
+  }
+  const [match] = matches;
+  if (match === undefined || matches.length > 1) {
+    throw new AppError("usage", {
+      name: "AmbiguousRecord",
+      human: `${matches.length} ${type} records on ${name}: ${matches.map(valueOf).join(", ")}.`,
+      hint: `Pass the value to pick one: spaceship dns delete ${domain} ${type} ${name} <value> --apply`,
+    });
+  }
+  const { ttl: _ttl, ...item } = dnsRecordBody(match);
+  return { match, item };
+}
+
 export async function dnsDelete(
   ctx: EmitContext,
   client: SpaceshipClient,
   flags: MutateFlags,
   args: Args,
 ): Promise<ExitCode> {
-  const domain = need(args._[2], "a domain name", "spaceship dns delete example.com A www --apply");
-  const type = need(args._[3], "a record type", "spaceship dns delete example.com A www --apply").toUpperCase();
-  const name = need(args._[4], "a record name", "spaceship dns delete example.com A www --apply");
+  const usage = "spaceship dns delete example.com CNAME www [value] --apply";
+  const domain = need(args._[2], "a domain name", usage);
+  const type = need(args._[3], "a record type", usage).toUpperCase();
+  const name = need(args._[4], "a record name", usage);
+  const value = args._[5] === undefined ? undefined : String(args._[5]);
+
+  // The API deletes by full record (type, name and value fields), so look the record up first.
+  const { data } = await allDnsRecords(client, domain);
+  const { match, item } = deleteItemFor(data.items, domain, type, name, value);
 
   return runMutation(ctx, client, flags, {
     command: "dns delete",
@@ -304,8 +347,9 @@ export async function dnsDelete(
     target: domain,
     method: "DELETE",
     path: `/v1/dns/records/${encodeURIComponent(domain)}`,
-    body: [{ type, name }],
+    body: [item],
     summary: `delete the ${type} record on ${name}`,
+    details: { name, value: valueOf(match) },
     warning: "Deleted records are not recoverable from the API; re-create them by hand if this is wrong.",
     nextSteps: () => [{ command: `spaceship dns list ${domain}`, reason: "Confirm what remains" }],
     render: applied(domain, `${type} ${name} deleted`),

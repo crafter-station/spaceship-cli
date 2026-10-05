@@ -1,10 +1,11 @@
 import type { SpaceshipClient } from "../client.js";
-import { EXIT, type ExitCode } from "../contract.js";
+import { EXIT, type ExitCode, type RateLimitState } from "../contract.js";
 import { emitResult, type EmitContext } from "../output/envelope.js";
 import { grouped, table } from "../output/table.js";
 import { daysUntil, expiryPhrase, paintUrgency, urgencyOf } from "../output/urgency.js";
 import { bold, danger, dim, muted, ok, warn } from "../cli/platform/style.js";
 import { AppError } from "../cli/foundation/error-map.js";
+import { dnsGroup } from "../types.js";
 import type {
   AsyncOperation,
   AuthCode,
@@ -154,12 +155,32 @@ export async function domainsCheck(ctx: EmitContext, client: SpaceshipClient, na
 
 // ------------------------------------------------------------------ dns list
 
+const DNS_PAGE = 500;
+
+/** Every record on a zone: the API returns at most 500 per request. */
+export async function allDnsRecords(
+  client: SpaceshipClient,
+  domain: string,
+): Promise<{ data: Paged<DnsRecord>; rateLimit: RateLimitState | null }> {
+  const items: DnsRecord[] = [];
+  let total = 0;
+  let rateLimit: RateLimitState | null = null;
+  do {
+    const page = await client.get<Paged<DnsRecord>>(`/v1/dns/records/${encodeURIComponent(domain)}`, {
+      take: DNS_PAGE,
+      skip: items.length,
+    });
+    total = page.data.total;
+    rateLimit = page.rateLimit;
+    items.push(...page.data.items);
+    if (page.data.items.length === 0) break;
+  } while (items.length < total);
+  return { data: { items, total }, rateLimit };
+}
+
 export async function dnsList(ctx: EmitContext, client: SpaceshipClient, domain?: string): Promise<ExitCode> {
   const name = required(domain, "a domain name", "spaceship dns list example.com");
-  const { data, rateLimit } = await client.get<Paged<DnsRecord>>(`/v1/dns/records/${encodeURIComponent(name)}`, {
-    take: PAGE_SIZE,
-    skip: 0,
-  });
+  const { data, rateLimit } = await allDnsRecords(client, name);
 
   /** The value column differs per record type; this keeps one readable column. */
   const valueOf = (r: DnsRecord): string =>
@@ -183,7 +204,7 @@ export async function dnsList(ctx: EmitContext, client: SpaceshipClient, domain?
           { header: "name", render: (r) => bold(r.name), max: 30 },
           { header: "value", render: (r) => valueOf(r), max: 46 },
           { header: "ttl", align: "right", render: (r) => (r.ttl === undefined ? "" : dim(String(r.ttl))) },
-          { header: "managed", render: (r) => (r.group === "custom" ? "" : muted(r.group)) },
+          { header: "managed", render: (r) => (dnsGroup(r) === "custom" ? "" : muted(dnsGroup(r))) },
         ],
         { repeatHeader: false },
       )) {
