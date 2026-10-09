@@ -329,7 +329,7 @@
       "put": {
         "operationId": "saveDetails",
         "summary": "Save contact details",
-        "description": "Save details for the contact and return the generated contact ID.\n\n> Validation rules for some parameters (such as `stateProvince` and `postalCode`) depend on the selected country. These fields may be required based on the country\u2019s validation logic\n\n### Required Permissions \n\n - <a href=\"#scopes/contacts:write\">contacts:write</a>\n\n### Rate Limits \n\n * The limit for saving contact details is 300 requests per user, within 300 seconds.",
+        "description": "Save details for the contact and return the generated contact ID.\n\n> Validation rules for some parameters (such as `stateProvince` and `postalCode`) depend on the selected country. These fields may be required based on the country’s validation logic\n\n### Required Permissions \n\n - <a href=\"#scopes/contacts:write\">contacts:write</a>\n\n### Rate Limits \n\n * The limit for saving contact details is 300 requests per user, within 300 seconds.",
         "parameters": [],
         "responses": {
           "200": {
@@ -13083,7 +13083,7 @@
       "get": {
         "operationId": "getSafePayTransactionList",
         "summary": "List SafePay transactions",
-        "description": "Returns a paginated list of SafePay transactions the caller is a party to \u2014 as buyer, seller, or (for a broker) the originating broker.\n\n### Pagination\n- Set `take` (required, 1-100) to control the page size.\n- Set `skip` (required, 0 or greater) to control the offset from the start of the result set.\n- Omitting `take` or `skip` returns a `400 Bad Request`.\n- Read `total` from the response for the overall number of matching transactions.\n\n### Required Permissions \n\n - <a href=\"#scopes/sellerhub:read\">sellerhub:read</a>\n\n### Rate Limits \n\n * The limit for listing SafePay transactions is 300 requests per user, within 300 seconds.",
+        "description": "Returns a paginated list of SafePay transactions the caller is a party to — as buyer, seller, or (for a broker) the originating broker.\n\n### Pagination\n- Set `take` (required, 1-100) to control the page size.\n- Set `skip` (required, 0 or greater) to control the offset from the start of the result set.\n- Omitting `take` or `skip` returns a `400 Bad Request`.\n- Read `total` from the response for the overall number of matching transactions.\n\n### Required Permissions \n\n - <a href=\"#scopes/sellerhub:read\">sellerhub:read</a>\n\n### Rate Limits \n\n * The limit for listing SafePay transactions is 300 requests per user, within 300 seconds.",
         "parameters": [
           {
             "name": "take",
@@ -13380,7 +13380,7 @@
       "post": {
         "operationId": "createSafePayTransaction",
         "summary": "Create a SafePay transaction",
-        "description": "Opens a SafePay (escrow) transaction for a domain sale. The endpoint returns immediately; the counterparty confirms out of band.\n\nThe initiator role is stated via `initiatedBy` (`seller`, `buyer`, or `broker`). The returned `status` shows which side must still act (`pendingSellerConfirm` or `pendingBuyerConfirm`), or `active` when no confirmation remains.\n\n### Broker flow\nWhen `initiatedBy=broker`, the authenticated caller is the broker acting on behalf of both parties:\n- Provide the seller via `sellerEmail` or `sellerUsername`, and optionally the buyer via `buyerEmail` or `buyerUsername`.\n- Use `confirmedBy` to pre-confirm the seller and/or buyer at creation, skipping their confirmation step.\n\n### Notes\n- `basePrice` is required for both types: for `buyNow` it is the amount the buyer pays; for `leaseToOwn` it is the lease total from which the plan is derived, and `ltoSettings` then supplies `downPaymentPercentage` + `installmentPeriods`. Omitting the field required for the chosen `type` returns a `400 Bad Request`.\n- **Minimum payment:** every payment must be at least 100 (in the given currency) \u2014 for `buyNow` that is `basePrice`; for `leaseToOwn` it is the derived down payment and each installment. A plan that produces any payment below 100 returns a `400 Bad Request`.\n- `feePercentageShare` sets how the marketplace commission is split between seller and buyer.\n- **`paymentMethod`:** required when the buyer commits upfront without a later confirmation step \u2014 i.e. `initiatedBy=buyer`, or a broker pre-confirming the buyer (`confirmedBy.buyer=true`); omitting it then returns `400 Bad Request`. Omit it in every other flow.\n- **Conflict (`409`):** returned when the domain already has an agreement to sell in place (an accepted offer / agreement-reached lead). Complete or cancel that agreement before opening a SafePay transaction for the domain.\n\n### Required Permissions \n\n - <a href=\"#scopes/sellerhub:write\">sellerhub:write</a>\n\n### Rate Limits \n\n * The limit for creating a SafePay transaction is 300 requests per user, within 300 seconds.",
+        "description": "Opens a SafePay (escrow) transaction for a domain sale. The endpoint returns immediately; the counterparty confirms out of band.\n\nThe initiator role is stated via `initiatedBy` (`seller`, `buyer`, or `broker`). The returned `status` shows which side must still act (`pendingSellerConfirm` or `pendingBuyerConfirm`), or `active` when no confirmation remains.\n\n### Broker flow\nWhen `initiatedBy=broker`, the authenticated caller is the broker acting on behalf of both parties:\n- Provide the seller via `sellerEmail` or `sellerUsername`, and optionally the buyer via `buyerEmail` or `buyerUsername`.\n- Use `confirmedBy` to pre-confirm the seller and/or buyer at creation, skipping their confirmation step.\n\n### Notes\n- `basePrice` is required for both types: for `buyNow` it is the amount the buyer pays; for `leaseToOwn` it is the lease total from which the plan is derived, and `ltoSettings` then supplies `downPaymentPercentage` + `installmentPeriods`. Omitting the field required for the chosen `type` returns a `400 Bad Request`.\n- **Minimum payment:** every payment must be at least 100 (in the given currency) — for `buyNow` that is `basePrice`; for `leaseToOwn` it is the derived down payment and each installment. A plan that produces any payment below 100 returns a `400 Bad Request`.\n- `feePercentageShare` sets how the marketplace commission is split between seller and buyer.\n- **`paymentMethod`:** required when the buyer commits upfront without a later confirmation step — i.e. `initiatedBy=buyer`, or a broker pre-confirming the buyer (`confirmedBy.buyer=true`); omitting it then returns `400 Bad Request`. Omit it in every other flow.\n- **Conflict (`409`):** returned when the domain already has an agreement to sell in place (an accepted offer / agreement-reached lead). Complete or cancel that agreement before opening a SafePay transaction for the domain.\n\n### Required Permissions \n\n - <a href=\"#scopes/sellerhub:write\">sellerhub:write</a>\n\n### Rate Limits \n\n * The limit for creating a SafePay transaction is 300 requests per user, within 300 seconds.",
         "parameters": [],
         "responses": {
           "201": {
@@ -14949,7 +14949,7 @@
               0,
               128
             ],
-            "description": "0   - no flags are set;\n128 - indicates that the \u201ccritical bit\u201d is set, and that CAs should halt and not issue a certificate if they don\u2019t recognize the contents of the tag field"
+            "description": "0   - no flags are set;\n128 - indicates that the “critical bit” is set, and that CAs should halt and not issue a certificate if they don’t recognize the contents of the tag field"
           },
           "tag": {
             "allOf": [
@@ -14994,7 +14994,7 @@
               0,
               128
             ],
-            "description": "0   - no flags are set;\n128 - indicates that the \u201ccritical bit\u201d is set, and that CAs should halt and not issue a certificate if they don\u2019t recognize the contents of the tag field"
+            "description": "0   - no flags are set;\n128 - indicates that the “critical bit” is set, and that CAs should halt and not issue a certificate if they don’t recognize the contents of the tag field"
           },
           "tag": {
             "allOf": [
@@ -15039,7 +15039,7 @@
               0,
               128
             ],
-            "description": "0   - no flags are set;\n128 - indicates that the \u201ccritical bit\u201d is set, and that CAs should halt and not issue a certificate if they don\u2019t recognize the contents of the tag field"
+            "description": "0   - no flags are set;\n128 - indicates that the “critical bit” is set, and that CAs should halt and not issue a certificate if they don’t recognize the contents of the tag field"
           },
           "tag": {
             "allOf": [
@@ -15296,7 +15296,7 @@
               }
             ],
             "example": "example.com",
-            "description": "The domain name to open the SafePay transaction for. Must be a domain currently listed in SellerHub."
+            "description": "The domain name to open the SafePay transaction for, 4 to 255 characters."
           },
           "initiatedBy": {
             "allOf": [
@@ -15328,7 +15328,7 @@
                 "$ref": "#/components/schemas/SafePayLtoSettings"
               }
             ],
-            "description": "Lease-to-Own plan terms (`downPaymentPercentage` + `installmentPeriods`). Required when `type=leaseToOwn` (a `leaseToOwn` request without it returns `400 Bad Request`); omit for `buyNow`, where any value supplied is ignored. The full schedule is derived server-side from `basePrice` and these values. Each derived payment must be at least 100 (in the given currency) \u2014 i.e. both the down payment (`basePrice * downPaymentPercentage / 100`, when non-zero) and each installment (`(basePrice - downPayment) / installmentPeriods`); choose `downPaymentPercentage` and `installmentPeriods` accordingly or the request is rejected with `400 Bad Request`."
+            "description": "Lease-to-Own plan terms (`downPaymentPercentage` + `installmentPeriods`). Required when `type=leaseToOwn` (a `leaseToOwn` request without it returns `400 Bad Request`); omit for `buyNow`, where any value supplied is ignored. The full schedule is derived server-side from `basePrice` and these values. Each derived payment must be at least 100 (in the given currency) — i.e. both the down payment (`basePrice * downPaymentPercentage / 100`, when non-zero) and each installment (`(basePrice - downPayment) / installmentPeriods`); choose `downPaymentPercentage` and `installmentPeriods` accordingly or the request is rejected with `400 Bad Request`."
           },
           "feePercentageShare": {
             "allOf": [
@@ -15345,7 +15345,7 @@
               }
             ],
             "example": "buyer@example.com",
-            "description": "Buyer's email. Broker and seller-initiated flows: identifies or invites the buyer. Buyer-initiated flow: optional \u2014 the buyer is the authenticated caller, so this only overrides the email recorded for them."
+            "description": "Buyer's email. Broker and seller-initiated flows: identifies or invites the buyer. Buyer-initiated flow: optional — the buyer is the authenticated caller, so this only overrides the email recorded for them."
           },
           "buyerUsername": {
             "allOf": [
@@ -15354,7 +15354,7 @@
               }
             ],
             "example": "buyer123",
-            "description": "Buyer's platform username. Used only in the broker flow to identify the buyer (general users are identified by email); resolved to an existing buyer account \u2014 a username that matches no account is rejected."
+            "description": "Buyer's platform username. Used only in the broker flow to identify the buyer (general users are identified by email); resolved to an existing buyer account — a username that matches no account is rejected."
           },
           "sellerEmail": {
             "allOf": [
@@ -15372,7 +15372,7 @@
               }
             ],
             "example": "seller123",
-            "description": "Seller's platform username. Used only in the broker flow to identify the seller (general users are identified by email); resolved to an existing seller account \u2014 a username that matches no account is rejected."
+            "description": "Seller's platform username. Used only in the broker flow to identify the seller (general users are identified by email); resolved to an existing seller account — a username that matches no account is rejected."
           },
           "confirmedBy": {
             "allOf": [
@@ -15389,10 +15389,10 @@
               }
             ],
             "example": "creditCard",
-            "description": "Payment method the buyer commits to. **Required** when the buyer commits upfront without a later confirmation step \u2014 i.e. when `initiatedBy=buyer`, or when a broker pre-confirms the buyer (`confirmedBy.buyer=true`); omitting it then returns `400 Bad Request`. Must be omitted otherwise (the buyer selects it during their own confirmation)."
+            "description": "Payment method the buyer commits to. **Required** when the buyer commits upfront without a later confirmation step — i.e. when `initiatedBy=buyer`, or when a broker pre-confirms the buyer (`confirmedBy.buyer=true`); omitting it then returns `400 Bad Request`. Must be omitted otherwise (the buyer selects it during their own confirmation)."
           }
         },
-        "description": "Request payload for opening a SafePay (escrow) transaction for a domain sale.\n\n`initiatedBy` sets who opens the transaction and how the counterparties are identified:\n\n- **`seller`** \u2014 the caller is the seller. Optionally identify the buyer with `buyerEmail` (an unregistered email is invited). No seller identifier is needed.\n- **`buyer`** \u2014 the caller is the buyer. `sellerEmail` is **required** (an unregistered email is invited, otherwise resolved to the existing seller). `buyerEmail` is optional and only overrides the email recorded for the buyer. `paymentMethod` is **required** \u2014 the buyer commits to it upfront and does not run a later confirmation step.\n- **`broker`** \u2014 the caller is the broker acting for both parties. Identify the seller with **exactly one** of `sellerEmail` / `sellerUsername` (required) and, optionally, the buyer with **at most one** of `buyerEmail` / `buyerUsername`. Broker identifiers must resolve to **existing** platform accounts. `confirmedBy` may pre-confirm either party and is honoured only here. When it pre-confirms the buyer (`confirmedBy.buyer=true`), `paymentMethod` is **required** \u2014 the buyer never runs the confirmation step that would otherwise capture it.\n\n`sellerUsername` / `buyerUsername` are used only in the broker flow (general users are identified by email); they are ignored in the seller- and buyer-initiated flows. Providing **both** an email and a username for the same party returns `400 Bad Request` for the buyer in every flow and for the seller in the broker flow.\n\n`basePrice` is always required: for `buyNow` it is the single payment; for `leaseToOwn` it is the total lease price the plan is derived from. When `type=leaseToOwn`, also provide `ltoSettings` (`downPaymentPercentage` + `installmentPeriods`) \u2014 the down payment, installment amount, and final split are computed from `basePrice` and these two values."
+        "description": "Request payload for opening a SafePay (escrow) transaction for a domain sale.\n\n`initiatedBy` sets who opens the transaction and how the counterparties are identified:\n\n- **`seller`** — the caller is the seller. Optionally identify the buyer with `buyerEmail` (an unregistered email is invited). No seller identifier is needed.\n- **`buyer`** — the caller is the buyer. `sellerEmail` is **required** (an unregistered email is invited, otherwise resolved to the existing seller). `buyerEmail` is optional and only overrides the email recorded for the buyer. `paymentMethod` is **required** — the buyer commits to it upfront and does not run a later confirmation step.\n- **`broker`** — the caller is the broker acting for both parties. Identify the seller with **exactly one** of `sellerEmail` / `sellerUsername` (required) and, optionally, the buyer with **at most one** of `buyerEmail` / `buyerUsername`. Broker identifiers must resolve to **existing** platform accounts. `confirmedBy` may pre-confirm either party and is honoured only here. When it pre-confirms the buyer (`confirmedBy.buyer=true`), `paymentMethod` is **required** — the buyer never runs the confirmation step that would otherwise capture it.\n\n`sellerUsername` / `buyerUsername` are used only in the broker flow (general users are identified by email); they are ignored in the seller- and buyer-initiated flows. Providing **both** an email and a username for the same party returns `400 Bad Request` for the buyer in every flow and for the seller in the broker flow.\n\n`basePrice` is always required: for `buyNow` it is the single payment; for `leaseToOwn` it is the total lease price the plan is derived from. When `type=leaseToOwn`, also provide `ltoSettings` (`downPaymentPercentage` + `installmentPeriods`) — the down payment, installment amount, and final split are computed from `basePrice` and these two values."
       },
       "CreateSellerHubDomainRequest": {
         "type": "object",
@@ -15582,7 +15582,7 @@
           "autoRenew": {
             "type": "boolean",
             "example": false,
-            "description": "Specifies whether automatic renewal will be enabled for the domain after the registration. After that, if autoRenew is set to true, the domain will be automatically renewed using the account\u2019s default payment method upon each expiration"
+            "description": "Specifies whether automatic renewal will be enabled for the domain after the registration. After that, if autoRenew is set to true, the domain will be automatically renewed using the account’s default payment method upon each expiration"
           },
           "years": {
             "type": "integer",
@@ -15610,7 +15610,7 @@
                 "1ZdMXpapqp9sle5dl8BlppTJXAzf8"
               ]
             },
-            "description": "Domain contacts are specified using contact IDs. These contact IDs can be obtained from the \u201cGet domain info\u201d endpoint (/domains) for an existing domain, or by creating new contacts through the \u201cSave contact details\u201d endpoint (/contacts). Each contact ID corresponds to a specific contact person and includes their details (such as name, address, and email). These contacts will be associated with the domain during registration."
+            "description": "Domain contacts are specified using contact IDs. These contact IDs can be obtained from the “Get domain info” endpoint (/domains) for an existing domain, or by creating new contacts through the “Save contact details” endpoint (/contacts). Each contact ID corresponds to a specific contact person and includes their details (such as name, address, and email). These contacts will be associated with the domain during registration."
           }
         }
       },
@@ -15715,7 +15715,7 @@
               "$ref": "#/components/schemas/DomainSuspensionDetails"
             },
             "maxItems": 2,
-            "description": "Information about domain suspensions.\nThe array may be empty, contain details about one suspension (raaVerification, abuse, promoAbuse, fraud, pendingAccountVerification, unauthorizedAccess, tosViolation, transferDispute, restrictedSecurity, lockCourt, suspendCourt, udrpUrs, restrictedLegal, paymentPending, unpaidService, restrictedWhois, or lockedWhois), or up to two: one raaVerification and one legal (abuse, promoAbuse, fraud, pendingAccountVerification, unauthorizedAccess, tosViolation, transferDispute, restrictedSecurity, lockCourt, suspendCourt, udrpUrs, restrictedLegal, paymentPending, unpaidService, restrictedWhois, or lockedWhois)."
+            "description": "Information about domain suspensions.\nThe array may be empty, contain details about one suspension, or contain details about two: one `raaVerification` and one of the other reason codes.\n\nPossible reason codes are:\n\n* `raaVerification` - The domain is suspended due to unverified contacts.\n* `abuse` - The domain is suspended to prevent or mitigate abusive activity.\n* `promoAbuse` - The domain is suspended for violation of promotion terms.\n* `fraud` - The domain is suspended due to unverified payment activity.\n* `pendingAccountVerification` - The domain is locked due to pending account verification.\n* `unauthorizedAccess` - The domain is locked due to the unauthorized access report.\n* `tosViolation` - The domain is suspended for TOS violation.\n* `transferDispute` - The domain is locked due to an ongoing transfer dispute.\n* `restrictedSecurity` - The domain is suspended to prevent or mitigate abusive activity.\n* `lockCourt` - The domain is locked due to the legal proceeding.\n* `suspendCourt` - The domain is suspended due to the legal proceeding.\n* `udrpUrs` - The domain is locked due to UDRP/URS proceeding.\n* `restrictedLegal` - The domain is locked to prevent or mitigate abusive activity.\n* `paymentPending` - The domain is locked due to a payment issue.\n* `unpaidService` - The domain is suspended due to an unresolved payment issue.\n* `restrictedWhois` - The domain is suspended due to violation of our Domain Registration Agreement.\n* `lockedWhois` - The domain is locked due to violation of our Domain Registration Agreement.\n* `complianceCase` - The domain is locked due to an ongoing case with the Compliance Team.\n* `suspendRegistry` - The domain is suspended by the Registry.\n* `fefAbuse` - The domain is locked for violation of Email Forwarding Services according to TOS.\n* `ddosSuspend` - The domain is suspended to mitigate a DDoS attack."
           },
           "privacyProtection": {
             "allOf": [
@@ -15939,7 +15939,11 @@
               "paymentPending",
               "unpaidService",
               "restrictedWhois",
-              "lockedWhois"
+              "lockedWhois",
+              "complianceCase",
+              "suspendRegistry",
+              "fefAbuse",
+              "ddosSuspend"
             ],
             "example": "raaVerification",
             "description": "Suspension reason code"
@@ -15957,7 +15961,7 @@
           "autoRenew": {
             "type": "boolean",
             "example": false,
-            "description": "Specifies whether automatic renewal will be enabled for the domain after the transfer is completed. After that, if autoRenew is set to true, the domain will be automatically renewed using the account\u2019s default payment method upon each expiration"
+            "description": "Specifies whether automatic renewal will be enabled for the domain after the transfer is completed. After that, if autoRenew is set to true, the domain will be automatically renewed using the account’s default payment method upon each expiration"
           },
           "privacyProtection": {
             "$ref": "#/components/schemas/DomainPrivacyOptions"
@@ -15977,7 +15981,7 @@
                 "1ZdMXpapqp9sle5dl8BlppTJXAzf8"
               ]
             },
-            "description": "Domain contacts are specified using contact IDs. These contact IDs can be obtained from the \u201cGet domain info\u201d endpoint (/domains) for an existing domain, or by creating new contacts through the \u201cSave contact details\u201d endpoint (/contacts). Each contact ID corresponds to a specific contact person and includes their details (such as name, address, and email). These contacts will be associated with the domain after transfer."
+            "description": "Domain contacts are specified using contact IDs. These contact IDs can be obtained from the “Get domain info” endpoint (/domains) for an existing domain, or by creating new contacts through the “Save contact details” endpoint (/contacts). Each contact ID corresponds to a specific contact person and includes their details (such as name, address, and email). These contacts will be associated with the domain after transfer."
           },
           "authCode": {
             "allOf": [
@@ -17534,7 +17538,7 @@
             "example": 10,
             "minimum": 0,
             "maximum": 99,
-            "description": "Down payment as a whole-number percentage of the total lease price (integer only \u2014 fractional percentages are rejected). Capped at 99: a Lease-to-Own plan must leave a balance for the installments. A value near the cap leaves little per installment, and since each installment must be at least the platform minimum, an excessive percentage is still rejected on create. On read this is the nearest whole percent derived from the stored down-payment amount."
+            "description": "Down payment as a whole-number percentage of the total lease price (integer only — fractional percentages are rejected). Capped at 99: a Lease-to-Own plan must leave a balance for the installments. A value near the cap leaves little per installment, and since each installment must be at least the platform minimum, an excessive percentage is still rejected on create. On read this is the nearest whole percent derived from the stored down-payment amount."
           },
           "installmentPeriods": {
             "type": "integer",
@@ -17545,12 +17549,13 @@
             "description": "Number of monthly installment periods over which the balance is paid."
           }
         },
-        "description": "Lease-to-Own terms for a `leaseToOwn` transaction: the down payment percentage and the number of installment periods. The total lease price is carried by `basePrice`.\n\nOn **create** these two values, together with `basePrice`, define the plan \u2014 the down payment amount, per-installment amount, and any remainder are derived server-side. On **read** the same two values are recomputed from the stored plan: both remain whole numbers (never fractional), and `downPaymentPercentage` is rounded to the nearest whole percent of the down-payment amount. A plan created through this API round-trips to the submitted values; a plan created elsewhere with an explicit down-payment amount may report the closest whole percent."
+        "description": "Lease-to-Own terms for a `leaseToOwn` transaction: the down payment percentage and the number of installment periods. The total lease price is carried by `basePrice`.\n\nOn **create** these two values, together with `basePrice`, define the plan — the down payment amount, per-installment amount, and any remainder are derived server-side. On **read** the same two values are recomputed from the stored plan: both remain whole numbers (never fractional), and `downPaymentPercentage` is rounded to the nearest whole percent of the down-payment amount. A plan created through this API round-trips to the submitted values; a plan created elsewhere with an explicit down-payment amount may report the closest whole percent."
       },
       "SafePayPaymentMethod": {
         "type": "string",
         "enum": [
           "btcPay",
+          "accountFunds",
           "wireTransfer",
           "creditCard",
           "payPal",
@@ -17609,7 +17614,7 @@
                 "$ref": "#/components/schemas/SafePaySaleStatus"
               }
             ],
-            "description": "Sale outcome once the buyer has paid \u2014 the post-payment sale, distinct from `status`. Returned only to a broker caller and only once a sale is tracked; absent otherwise (including on create)."
+            "description": "Sale outcome once the buyer has paid — the post-payment sale, distinct from `status`. Returned only to a broker caller and only once a sale is tracked; absent otherwise (including on create)."
           },
           "domainName": {
             "allOf": [
@@ -17650,7 +17655,7 @@
                 "$ref": "#/components/schemas/SafePayLtoSettings"
               }
             ],
-            "description": "Lease-to-Own terms; present only when `type` is `leaseToOwn`. Recomputed from the stored plan \u2014 see `SafePayLtoSettings` for how `downPaymentPercentage` is rounded to the nearest whole percent on read."
+            "description": "Lease-to-Own terms; present only when `type` is `leaseToOwn`. Recomputed from the stored plan — see `SafePayLtoSettings` for how `downPaymentPercentage` is rounded to the nearest whole percent on read."
           },
           "feePercentageShare": {
             "allOf": [
@@ -17684,7 +17689,7 @@
                 "$ref": "#/components/schemas/SafePayConfirmedBy"
               }
             ],
-            "description": "Live confirmation state \u2014 which parties have confirmed so far, whether by explicit action or broker pre-confirmation at creation."
+            "description": "Live confirmation state — which parties have confirmed so far, whether by explicit action or broker pre-confirmation at creation."
           },
           "url": {
             "allOf": [
